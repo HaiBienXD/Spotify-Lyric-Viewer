@@ -77,16 +77,21 @@ export default function LoginScreen() {
               Spotify Developer Dashboard
             </a>
           </p>
-          <button
-            onClick={copyUri}
-            className="w-full flex items-center justify-between gap-2 rounded-xl px-4 py-2.5 font-mono text-xs text-left transition-colors hover:bg-white/10"
+          <div
+            className="w-full rounded-xl px-4 pt-3 pb-2 font-mono text-xs text-left"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-            data-testid="button-copy-redirect-uri"
-            title="Click to copy"
           >
-            <span className="text-[#1DB954] truncate">{redirectUri}</span>
-            <span className="flex-shrink-0 text-gray-400">{copied ? "Copied!" : "Copy"}</span>
-          </button>
+            <span className="text-[#1DB954] break-all select-all">{redirectUri}</span>
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={copyUri}
+                className="text-gray-400 hover:text-white transition-colors px-2 py-0.5 rounded text-xs"
+                data-testid="button-copy-redirect-uri"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>
