@@ -1,14 +1,29 @@
 import { generateRandomString, generateCodeChallenge } from "./pkce";
 
-const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || "";
-const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || window.location.origin;
-
 const SCOPES = "user-read-currently-playing user-read-playback-state user-read-recently-played";
 
+function getClientId(): string {
+  return import.meta.env.VITE_SPOTIFY_CLIENT_ID || window.localStorage.getItem("spotify_client_id") || "";
+}
+
+function getRedirectUri(): string {
+  if (import.meta.env.VITE_SPOTIFY_REDIRECT_URI) return import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
+  const { protocol, hostname, port } = window.location;
+  return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+}
+
+export function getCurrentRedirectUri(): string {
+  return getRedirectUri();
+}
+
+export function saveClientId(clientId: string) {
+  window.localStorage.setItem("spotify_client_id", clientId);
+}
+
 export async function redirectToSpotifyLogin() {
-  if (!CLIENT_ID) {
-    console.error("VITE_SPOTIFY_CLIENT_ID is not set.");
-    return;
+  const clientId = getClientId();
+  if (!clientId) {
+    throw new Error("VITE_SPOTIFY_CLIENT_ID is not set and no client ID found in localStorage.");
   }
 
   const verifier = generateRandomString(128);
@@ -17,9 +32,9 @@ export async function redirectToSpotifyLogin() {
   window.localStorage.setItem("spotify_code_verifier", verifier);
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: clientId,
     response_type: "code",
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     scope: SCOPES,
     code_challenge_method: "S256",
     code_challenge: challenge,
@@ -29,13 +44,14 @@ export async function redirectToSpotifyLogin() {
 }
 
 export async function exchangeToken(code: string) {
+  const clientId = getClientId();
   const verifier = window.localStorage.getItem("spotify_code_verifier");
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: clientId,
     grant_type: "authorization_code",
     code,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     code_verifier: verifier || "",
   });
 
@@ -45,21 +61,26 @@ export async function exchangeToken(code: string) {
     body: params,
   });
 
-  if (!response.ok) throw new Error("Failed to exchange token");
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error_description || "Failed to exchange token");
+  }
+
   const data = await response.json();
-  
   saveTokens(data);
   return data;
 }
 
-export async function refreshToken() {
-  const refreshToken = window.localStorage.getItem("spotify_refresh_token");
-  if (!refreshToken) throw new Error("No refresh token");
+export async function refreshAccessToken() {
+  const storedRefreshToken = window.localStorage.getItem("spotify_refresh_token");
+  if (!storedRefreshToken) throw new Error("No refresh token");
+
+  const clientId = getClientId();
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: clientId,
     grant_type: "refresh_token",
-    refresh_token: refreshToken,
+    refresh_token: storedRefreshToken,
   });
 
   const response = await fetch("https://accounts.spotify.com/api/token", {
@@ -70,16 +91,15 @@ export async function refreshToken() {
 
   if (!response.ok) throw new Error("Failed to refresh token");
   const data = await response.json();
-  
   saveTokens(data);
   return data;
 }
 
-function saveTokens(data: any) {
-  if (data.access_token) window.localStorage.setItem("spotify_access_token", data.access_token);
-  if (data.refresh_token) window.localStorage.setItem("spotify_refresh_token", data.refresh_token);
+function saveTokens(data: Record<string, unknown>) {
+  if (data.access_token) window.localStorage.setItem("spotify_access_token", String(data.access_token));
+  if (data.refresh_token) window.localStorage.setItem("spotify_refresh_token", String(data.refresh_token));
   if (data.expires_in) {
-    const expiry = Date.now() + data.expires_in * 1000;
+    const expiry = Date.now() + Number(data.expires_in) * 1000;
     window.localStorage.setItem("spotify_token_expiry", expiry.toString());
   }
 }
@@ -92,37 +112,45 @@ export function clearTokens() {
   window.localStorage.removeItem("spotify_access_token");
   window.localStorage.removeItem("spotify_refresh_token");
   window.localStorage.removeItem("spotify_token_expiry");
+  window.localStorage.removeItem("spotify_code_verifier");
 }
 
-export async function fetchSpotifyApi(endpoint: string, options: RequestInit = {}) {
+let retryAfter = 0;
+
+export async function fetchSpotifyApi(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  if (Date.now() < retryAfter) {
+    await new Promise((r) => setTimeout(r, retryAfter - Date.now()));
+  }
+
   let token = getAccessToken();
-  let expiry = window.localStorage.getItem("spotify_token_expiry");
+  const expiry = window.localStorage.getItem("spotify_token_expiry");
 
   if (!token) throw new Error("No token");
 
-  if (expiry && Date.now() > parseInt(expiry, 10)) {
-    await refreshToken();
+  if (expiry && Date.now() > parseInt(expiry, 10) - 30_000) {
+    await refreshAccessToken();
     token = getAccessToken();
   }
 
-  const res = await fetch(`https://api.spotify.com/v1${endpoint}`, {
-    ...options,
-    headers: {
-      ...options.headers,
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const doFetch = (t: string | null) =>
+    fetch(`https://api.spotify.com/v1${endpoint}`, {
+      ...options,
+      headers: { ...options.headers, Authorization: `Bearer ${t}` },
+    });
+
+  let res = await doFetch(token);
+
+  if (res.status === 429) {
+    const wait = parseInt(res.headers.get("Retry-After") || "5", 10) * 1000;
+    retryAfter = Date.now() + wait;
+    await new Promise((r) => setTimeout(r, wait));
+    res = await doFetch(token);
+  }
 
   if (res.status === 401) {
-    await refreshToken();
+    await refreshAccessToken();
     token = getAccessToken();
-    return fetch(`https://api.spotify.com/v1${endpoint}`, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    res = await doFetch(token);
   }
 
   return res;
