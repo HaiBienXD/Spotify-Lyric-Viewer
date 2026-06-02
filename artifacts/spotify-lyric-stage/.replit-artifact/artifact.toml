@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Spotify Lyric Stage"
+version = "1.0.0"
+id = "artifacts/spotify-lyric-stage"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19598
+
+[services.development]
+run = "pnpm --filter @workspace/spotify-lyric-stage run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/spotify-lyric-stage", "run", "build" ]
+publicDir = "artifacts/spotify-lyric-stage/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19598"
+BASE_PATH = "/"

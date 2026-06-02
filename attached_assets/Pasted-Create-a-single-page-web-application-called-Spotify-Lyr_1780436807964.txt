@@ -1,0 +1,193 @@
+Create a single-page web application called "Spotify Lyric Stage".
+
+Goal:
+Create the ultimate fullscreen Spotify lyrics experience inspired by QQ Music.
+
+This is NOT a mobile app.
+This is a WEB APP only.
+
+Requirements:
+
+- Pure HTML
+- CSS
+- JavaScript
+
+or
+
+- Vite + React
+
+The final result must run directly inside Replit.
+
+================================================
+
+SPOTIFY
+
+================================================
+
+Implement Spotify OAuth PKCE login.
+
+After login:
+
+- Detect current playing song
+- Album artwork
+- Song title
+- Artist
+- Playback progress
+
+Use Spotify Web API.
+
+================================================
+
+LYRICS
+
+================================================
+
+Automatically fetch synchronized lyrics using LRCLib API.
+
+Features:
+
+- Large centered lyrics
+- Auto scrolling
+- Active lyric highlighting
+- Karaoke effect
+- Smooth transitions
+
+================================================
+
+FULLSCREEN MODE
+
+================================================
+
+Provide a large button:
+
+"ENTER STAGE MODE"
+
+When pressed:
+
+- Browser fullscreen
+- Landscape optimized
+- Hide all controls
+- Focus on lyrics
+
+Must look like QQ Music lyric mode.
+
+================================================
+
+VISUAL EFFECTS
+
+================================================
+
+Create multiple modes:
+
+1. Neon
+2. Aurora
+3. Galaxy
+4. Cyberpunk
+5. Glass
+6. AMOLED
+7. Matrix
+8. Rain
+9. Fire
+10. Minimal
+
+User can switch instantly.
+
+================================================
+
+BACKGROUND
+
+================================================
+
+Generate dynamic animated backgrounds.
+
+Background colors automatically adapt to album art.
+
+Add:
+
+- Blur
+- Glow
+- Particles
+- Light rays
+
+================================================
+
+VISUALIZER
+
+================================================
+
+Create simulated music visualizers:
+
+- Circular spectrum
+- Equalizer bars
+- Floating particles
+- Orbit rings
+
+Must animate smoothly at 60 FPS.
+
+================================================
+
+MOBILE
+
+================================================
+
+Must work perfectly on:
+
+- iPhone
+- Android
+- iPad
+- Desktop
+
+Support:
+
+- Portrait
+- Landscape
+
+Landscape should be the primary experience.
+
+================================================
+
+EXTRA
+
+================================================
+
+Add:
+
+- Theme selector
+- Lyric size control
+- Background blur control
+- Fullscreen toggle
+- OLED mode
+- Ambient mode
+
+================================================
+
+DESIGN
+
+================================================
+
+Make it feel premium.
+
+Inspired by:
+
+- QQ Music
+- Apple Music Sing
+- VisionOS
+
+Use:
+
+- Glassmorphism
+- Dynamic lighting
+- Smooth animations
+- Large typography
+
+================================================
+
+OUTPUT
+
+================================================
+
+Generate complete working code.
+
+No placeholders.
+
+Create all files necessary to run immediately in Replit.
