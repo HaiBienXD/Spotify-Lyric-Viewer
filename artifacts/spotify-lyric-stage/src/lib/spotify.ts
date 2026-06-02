@@ -8,13 +8,16 @@ function getClientId(): string {
 }
 
 function getRedirectUri(): string {
+  // 1. Explicit env var (highest priority)
   if (import.meta.env.VITE_SPOTIFY_REDIRECT_URI) return import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
-  // In Replit, window.location.hostname is the proxy (localhost), not the public URL.
-  // Use REPLIT_DEV_DOMAIN when available to get the real public HTTPS origin.
+  // 2. User-saved override via UI (saved to localStorage)
+  const override = window.localStorage.getItem("spotify_redirect_uri_override");
+  if (override) return override;
+  // 3. Replit dev domain (injected at build time — works in the Replit editor preview)
   const replitDomain = import.meta.env.VITE_REPLIT_DEV_DOMAIN;
   if (replitDomain) return `https://${replitDomain}`;
-  const { protocol, hostname, port } = window.location;
-  return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+  // 4. Fallback: real window origin (works correctly in production/deployed)
+  return window.location.origin;
 }
 
 export function getCurrentRedirectUri(): string {
