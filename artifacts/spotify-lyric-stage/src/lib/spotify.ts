@@ -8,14 +8,14 @@ function getClientId(): string {
 }
 
 function getRedirectUri(): string {
-  // 1. Explicit env var override (highest priority)
+  // 1. Explicit env var (highest priority)
   if (import.meta.env.VITE_SPOTIFY_REDIRECT_URI) return import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
-  // 2. User-saved override via the UI
+  // 2. User-saved override via UI
   const override = window.localStorage.getItem("spotify_redirect_uri_override");
   if (override) return override;
-  // 3. In production the bundle is served from the real public URL — use it directly.
-  //    In dev the Replit preview is a proxy so window.location.origin is "http://localhost";
-  //    instead use the dev domain baked in at build time.
+  // 3. In production window.location.origin is the real public URL.
+  //    In dev the preview is proxied so window.location.origin is "http://localhost" —
+  //    use the Replit dev domain baked in at build time instead.
   if (import.meta.env.PROD) {
     return window.location.origin;
   }
@@ -28,42 +28,65 @@ export function getCurrentRedirectUri(): string {
   return getRedirectUri();
 }
 
-export function saveClientId(clientId: string) {
-  window.localStorage.setItem("spotify_client_id", clientId);
+export function saveRedirectUriOverride(uri: string) {
+  window.localStorage.setItem("spotify_redirect_uri_override", uri.trim().replace(/\/$/, ""));
 }
 
-export async function redirectToSpotifyLogin() {
+export function clearRedirectUriOverride() {
+  window.localStorage.removeItem("spotify_redirect_uri_override");
+}
+
+/** Build the full Spotify authorization URL without navigating — useful for debugging. */
+export async function buildSpotifyAuthUrl(): Promise<{ url: string; redirectUri: string; verifier: string }> {
   const clientId = getClientId();
-  if (!clientId) {
-    throw new Error("VITE_SPOTIFY_CLIENT_ID is not set and no client ID found in localStorage.");
-  }
-
-  const verifier = generateRandomString(128);
+  const redirectUri = getRedirectUri();
+  const verifier = generateRandomString(64);
   const challenge = await generateCodeChallenge(verifier);
-
-  window.localStorage.setItem("spotify_code_verifier", verifier);
+  const state = generateRandomString(16);
 
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
-    redirect_uri: getRedirectUri(),
+    redirect_uri: redirectUri,
     scope: SCOPES,
     code_challenge_method: "S256",
     code_challenge: challenge,
+    state,
   });
 
-  window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+  return {
+    url: `https://accounts.spotify.com/authorize?${params.toString()}`,
+    redirectUri,
+    verifier,
+  };
 }
 
-export async function exchangeToken(code: string) {
+export async function redirectToSpotifyLogin() {
+  const clientId = getClientId();
+  if (!clientId) throw new Error("No Spotify Client ID configured.");
+
+  const { url, verifier } = await buildSpotifyAuthUrl();
+  window.localStorage.setItem("spotify_code_verifier", verifier);
+  window.location.href = url;
+}
+
+export async function exchangeToken(code: string, state?: string) {
+  // Validate state if present
+  const savedState = window.localStorage.getItem("spotify_oauth_state");
+  if (state && savedState && state !== savedState) {
+    throw new Error("OAuth state mismatch — possible CSRF attack.");
+  }
+  window.localStorage.removeItem("spotify_oauth_state");
+
   const clientId = getClientId();
   const verifier = window.localStorage.getItem("spotify_code_verifier");
+  const redirectUri = getRedirectUri();
 
   const params = new URLSearchParams({
     client_id: clientId,
     grant_type: "authorization_code",
     code,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: redirectUri,
     code_verifier: verifier || "",
   });
 
@@ -75,7 +98,7 @@ export async function exchangeToken(code: string) {
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error_description || "Failed to exchange token");
+    throw new Error(err.error_description || err.error || "Failed to exchange token");
   }
 
   const data = await response.json();
@@ -125,6 +148,7 @@ export function clearTokens() {
   window.localStorage.removeItem("spotify_refresh_token");
   window.localStorage.removeItem("spotify_token_expiry");
   window.localStorage.removeItem("spotify_code_verifier");
+  window.localStorage.removeItem("spotify_oauth_state");
 }
 
 let retryAfter = 0;
@@ -136,7 +160,6 @@ export async function fetchSpotifyApi(endpoint: string, options: RequestInit = {
 
   let token = getAccessToken();
   const expiry = window.localStorage.getItem("spotify_token_expiry");
-
   if (!token) throw new Error("No token");
 
   if (expiry && Date.now() > parseInt(expiry, 10) - 30_000) {
