@@ -13,15 +13,12 @@ function getRedirectUri(): string {
   // 2. User-saved override via UI
   const override = window.localStorage.getItem("spotify_redirect_uri_override");
   if (override) return override;
-  // 3. In production window.location.origin is the real public URL.
-  //    In dev the preview is proxied so window.location.origin is "http://localhost" —
-  //    use the Replit dev domain baked in at build time instead.
-  if (import.meta.env.PROD) {
-    return window.location.origin;
-  }
-  const replitDomain = import.meta.env.VITE_REPLIT_DEV_DOMAIN;
-  if (replitDomain) return `https://${replitDomain}`;
-  return window.location.origin;
+  // 3. Always use the backend /api/spotify/callback path — this is a fixed, predictable
+  //    route served by the API server at the same origin as the frontend. The backend
+  //    simply redirects back to /?code=...&state=... so the frontend can finish the PKCE flow.
+  //    In dev the Replit preview proxies everything through the same domain, so
+  //    window.location.origin correctly resolves to the dev domain.
+  return `${window.location.origin}/api/spotify/callback`;
 }
 
 export function getCurrentRedirectUri(): string {
