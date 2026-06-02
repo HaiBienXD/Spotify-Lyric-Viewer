@@ -1,0 +1,275 @@
+2. Now Playing
+
+- Detect currently playing Spotify track
+
+- Album cover
+
+- Song title
+
+- Artist
+
+- Progress bar
+
+- Playback state
+
+3. Fullscreen Lyrics
+
+- Large typography
+
+- Smooth scrolling
+
+- Auto center active lyric
+
+- Karaoke word-by-word highlighting
+
+- Fallback line highlighting
+
+- Touch support
+
+- Mobile landscape support
+
+4. QQ Music Inspired Experience
+
+- Fullscreen immersive mode
+
+- Dynamic animated backgrounds
+
+- Dynamic colors generated from album art
+
+- Smooth transitions
+
+- Ultra polished animations
+
+====================================================
+
+LYRIC THEMES
+
+====================================================
+
+Create switchable themes:
+
+1. Neon
+
+- Glow text
+
+- Animated shadows
+
+2. Cyberpunk
+
+- RGB effects
+
+- Futuristic UI
+
+3. Aurora
+
+- Moving gradients
+
+4. Glass
+
+- Frosted glass UI
+
+5. AMOLED
+
+- Pure black background
+
+6. Galaxy
+
+- Animated stars
+
+7. Rain
+
+- Rain particles
+
+8. Matrix
+
+- Digital rain
+
+9. Fire
+
+- Flame particles
+
+10. Minimal
+
+- Apple-style design
+
+====================================================
+
+VISUALIZERS
+
+====================================================
+
+Implement visualizers:
+
+- Circular spectrum
+
+- Bars
+
+- Waveform simulation
+
+- Particle field
+
+- Orbit rings
+
+- Galaxy mode
+
+Use smooth simulated beat response.
+
+====================================================
+
+ANIMATIONS
+
+====================================================
+
+Everything must feel premium.
+
+Requirements:
+
+- 60 FPS
+
+- Motion blur style transitions
+
+- Spring animations
+
+- Album cover parallax
+
+- Smooth page transitions
+
+- Dynamic background movement
+
+====================================================
+
+MOBILE EXPERIENCE
+
+====================================================
+
+Support:
+
+- iPhone
+
+- Android
+
+- Tablet
+
+- Desktop
+
+Landscape mode must feel like QQ Music.
+
+Large lyrics.
+
+Gesture support:
+
+- Swipe themes
+
+- Pinch lyric size
+
+- Double tap fullscreen
+
+====================================================
+
+ADVANCED FEATURES
+
+====================================================
+
+Theme editor:
+
+- Colors
+
+- Blur
+
+- Glow
+
+- Font size
+
+Custom backgrounds:
+
+- Image upload
+
+- Video upload
+
+Lyrics search:
+
+- Auto fetch
+
+- Manual override
+
+Favorite themes
+
+Playlist mode
+
+Sleep timer
+
+Ambient mode
+
+TV mode
+
+====================================================
+
+PERFORMANCE
+
+====================================================
+
+Lazy loading
+
+Code splitting
+
+GPU accelerated animations
+
+Image optimization
+
+Caching
+
+Offline support
+
+PWA support
+
+====================================================
+
+UI DESIGN
+
+====================================================
+
+The UI should look better than Spotify and inspired by:
+
+- QQ Music
+
+- Apple Music Sing
+
+- Modern gaming HUD
+
+- VisionOS
+
+Use:
+
+- Rounded corners
+
+- Glass effects
+
+- Depth
+
+- Dynamic lighting
+
+====================================================
+
+DELIVERABLES
+
+====================================================
+
+Generate:
+
+1. Full project structure
+
+2. Complete source code
+
+3. Environment configuration
+
+4. Spotify setup instructions
+
+5. Replit deployment configuration
+
+6. README
+
+7. Production-ready implementation
+
+Do not generate placeholders.
+
+Create real working code.

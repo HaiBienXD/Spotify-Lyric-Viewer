@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 export default function FireBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -6,73 +6,89 @@ export default function FireBackground() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
+    let w = (canvas.width = window.innerWidth);
+    let h = (canvas.height = window.innerHeight);
+    let raf: number;
 
-    const particles = Array.from({ length: 150 }).map(() => ({
-      x: Math.random() * width,
-      y: height + Math.random() * 100,
-      size: Math.random() * 5 + 2,
-      speedY: Math.random() * 3 + 1,
-      speedX: (Math.random() - 0.5) * 2,
-      life: Math.random() * 100 + 50,
-      maxLife: 150,
-    }));
+    const mkParticle = () => ({
+      x: w * 0.3 + Math.random() * w * 0.4,
+      y: h + Math.random() * 40,
+      size: Math.random() * 12 + 4,
+      speedY: Math.random() * 4 + 2,
+      speedX: (Math.random() - 0.5) * 2.5,
+      life: Math.random(),
+      decay: Math.random() * 0.012 + 0.006,
+      hue: Math.random() * 30, // 0-30: red to orange-yellow
+    });
 
-    let animationId: number;
+    const particles = Array.from({ length: 200 }, mkParticle);
 
     const render = () => {
-      ctx.fillStyle = 'rgba(10, 0, 0, 0.2)';
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "rgba(6,0,0,0.22)";
+      ctx.fillRect(0, 0, w, h);
 
-      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalCompositeOperation = "lighter";
 
-      particles.forEach(p => {
-        const opacity = Math.max(0, p.life / p.maxLife);
-        
-        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-        gradient.addColorStop(0, `rgba(255, 200, 0, ${opacity})`);
-        gradient.addColorStop(0.5, `rgba(255, 50, 0, ${opacity * 0.5})`);
-        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      particles.forEach((p) => {
+        const a = Math.max(0, p.life);
+        const r = Math.floor(255);
+        const g = Math.floor(a * a * 160 + p.hue * 3);
+        const b = 0;
 
-        ctx.fillStyle = gradient;
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
+        grad.addColorStop(0, `rgba(${r},${g},${b},${a * 0.9})`);
+        grad.addColorStop(0.4, `rgba(${r},${Math.floor(g * 0.5)},0,${a * 0.4})`);
+        grad.addColorStop(1, "rgba(100,0,0,0)");
+
+        ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
         ctx.fill();
 
         p.y -= p.speedY;
-        p.x += p.speedX;
-        p.life--;
+        p.x += p.speedX + Math.sin(p.y * 0.02) * 0.5;
+        p.size *= 0.996;
+        p.life -= p.decay;
 
-        if (p.life <= 0) {
-          p.y = height + 10;
-          p.x = Math.random() * width;
-          p.life = p.maxLife;
-          p.size = Math.random() * 5 + 2;
+        if (p.life <= 0 || p.y < -50) {
+          Object.assign(p, mkParticle());
         }
       });
 
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = "source-over";
 
-      animationId = requestAnimationFrame(render);
+      // Embers
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 3; i++) {
+        if (Math.random() > 0.7) {
+          const ex = w * 0.3 + Math.random() * w * 0.4;
+          const ey = h * 0.5 + Math.random() * h * 0.4;
+          ctx.beginPath();
+          ctx.arc(ex, ey, Math.random() * 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,200,50,${Math.random() * 0.8})`;
+          ctx.fill();
+        }
+      }
+      ctx.globalCompositeOperation = "source-over";
+
+      // Floor glow
+      const floorGlow = ctx.createLinearGradient(0, h * 0.7, 0, h);
+      floorGlow.addColorStop(0, "rgba(200,30,0,0.15)");
+      floorGlow.addColorStop(1, "rgba(200,30,0,0.05)");
+      ctx.fillStyle = floorGlow;
+      ctx.fillRect(0, h * 0.7, w, h * 0.3);
+
+      raf = requestAnimationFrame(render);
     };
 
     render();
-
-    const resize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', resize);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', resize);
-    };
+    const onResize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+    window.addEventListener("resize", onResize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
   }, []);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none bg-[#0a0000]" />;
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ background: "#060000" }} />;
 }

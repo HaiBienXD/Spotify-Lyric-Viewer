@@ -1,29 +1,75 @@
-import React from 'react';
-
 export default function NeonBackground() {
   return (
-    <div className="absolute inset-0 bg-black overflow-hidden pointer-events-none">
-      <div 
-        className="absolute inset-0 opacity-20"
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: "#04000f" }}>
+      {/* Horizon glow */}
+      <div
+        className="absolute w-full"
         style={{
-          background: 'linear-gradient(to bottom, transparent 50%, var(--extracted-primary, #ff00ff) 100%)',
+          bottom: "30%",
+          height: "2px",
+          background: "linear-gradient(90deg, transparent 0%, var(--extracted-primary, #ff00cc) 30%, var(--extracted-secondary, #00ccff) 70%, transparent 100%)",
+          boxShadow: "0 0 40px 10px var(--extracted-primary, #ff00cc)",
+          opacity: 0.8,
         }}
       />
-      {/* Grid */}
-      <div 
-        className="absolute inset-0"
+      {/* Perspective floor grid */}
+      <div
+        className="absolute left-0 right-0"
         style={{
+          bottom: 0,
+          height: "55%",
           backgroundImage: `
-            linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)
+            linear-gradient(to right, var(--extracted-primary, #ff00cc) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--extracted-primary, #ff00cc) 1px, transparent 1px)
           `,
-          backgroundSize: '40px 40px',
-          transform: 'perspective(500px) rotateX(60deg) translateY(100px) scale(3)',
-          transformOrigin: 'bottom center',
+          backgroundSize: "60px 30px",
+          transform: "perspective(400px) rotateX(75deg)",
+          transformOrigin: "50% 100%",
+          opacity: 0.25,
+        }}
+      />
+      {/* Ceiling grid */}
+      <div
+        className="absolute left-0 right-0"
+        style={{
+          top: 0,
+          height: "30%",
+          backgroundImage: `
+            linear-gradient(to right, var(--extracted-secondary, #00ccff) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--extracted-secondary, #00ccff) 1px, transparent 1px)
+          `,
+          backgroundSize: "60px 30px",
+          transform: "perspective(400px) rotateX(-70deg)",
+          transformOrigin: "50% 0%",
+          opacity: 0.15,
+        }}
+      />
+      {/* Color blooms */}
+      <div
+        className="absolute rounded-full blur-[120px]"
+        style={{
+          width: "50%", height: "40%",
+          left: "5%", bottom: "25%",
+          background: "var(--extracted-primary, #ff00cc)",
+          opacity: 0.12,
+        }}
+      />
+      <div
+        className="absolute rounded-full blur-[120px]"
+        style={{
+          width: "50%", height: "40%",
+          right: "5%", bottom: "25%",
+          background: "var(--extracted-secondary, #00ccff)",
+          opacity: 0.12,
         }}
       />
       {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-50" />
+      <div
+        className="absolute inset-0 opacity-20"
+        style={{
+          background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 4px)",
+        }}
+      />
     </div>
   );
 }

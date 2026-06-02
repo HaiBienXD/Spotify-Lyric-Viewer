@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 export default function MatrixBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -6,57 +6,55 @@ export default function MatrixBackground() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
+    let w = (canvas.width = window.innerWidth);
+    let h = (canvas.height = window.innerHeight);
+    const FS = 14;
+    let columns = Math.floor(w / FS);
+    let drops = Array.from({ length: columns }, () => Math.random() * (h / FS));
+    let raf: number;
 
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*";
-    const fontSize = 16;
-    const columns = width / fontSize;
-    const drops: number[] = [];
-
-    for (let x = 0; x < columns; x++) {
-      drops[x] = 1;
-    }
-
-    let animationId: number;
+    const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF";
 
     const render = () => {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "rgba(0,0,0,0.05)";
+      ctx.fillRect(0, 0, w, h);
 
-      const style = getComputedStyle(document.documentElement);
-      const color = style.getPropertyValue('--extracted-primary').trim() || '#0f0';
+      ctx.font = `bold ${FS}px monospace`;
 
-      ctx.fillStyle = color;
-      ctx.font = `${fontSize}px monospace`;
+      drops.forEach((y, i) => {
+        const x = i * FS;
+        // Head character — bright
+        const headChar = CHARS[Math.floor(Math.random() * CHARS.length)];
+        ctx.fillStyle = "#ccffcc";
+        ctx.fillText(headChar, x, y * FS);
 
-      for (let i = 0; i < drops.length; i++) {
-        const text = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        // Trail character — green
+        const trailChar = CHARS[Math.floor(Math.random() * CHARS.length)];
+        const alpha = Math.max(0.05, 1 - (y * FS) / h);
+        ctx.fillStyle = `rgba(0, 200, 80, ${alpha * 0.6})`;
+        ctx.fillText(trailChar, x, (y - 1) * FS);
 
-        if (drops[i] * fontSize > height && Math.random() > 0.975) {
+        drops[i]++;
+        if (drops[i] * FS > h && Math.random() > 0.975) {
           drops[i] = 0;
         }
-        drops[i]++;
-      }
-      animationId = requestAnimationFrame(render);
+      });
+
+      raf = requestAnimationFrame(render);
     };
 
     render();
-
-    const resize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
+    const onResize = () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      columns = Math.floor(w / FS);
+      drops = Array.from({ length: columns }, () => Math.random() * (h / FS));
     };
-    window.addEventListener('resize', resize);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', resize);
-    };
+    window.addEventListener("resize", onResize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
   }, []);
 
   return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none bg-black" />;
