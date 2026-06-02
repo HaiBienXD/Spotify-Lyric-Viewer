@@ -8,15 +8,19 @@ function getClientId(): string {
 }
 
 function getRedirectUri(): string {
-  // 1. Explicit env var (highest priority)
+  // 1. Explicit env var override (highest priority)
   if (import.meta.env.VITE_SPOTIFY_REDIRECT_URI) return import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
-  // 2. User-saved override via UI (saved to localStorage)
+  // 2. User-saved override via the UI
   const override = window.localStorage.getItem("spotify_redirect_uri_override");
   if (override) return override;
-  // 3. Replit dev domain (injected at build time — works in the Replit editor preview)
+  // 3. In production the bundle is served from the real public URL — use it directly.
+  //    In dev the Replit preview is a proxy so window.location.origin is "http://localhost";
+  //    instead use the dev domain baked in at build time.
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
   const replitDomain = import.meta.env.VITE_REPLIT_DEV_DOMAIN;
   if (replitDomain) return `https://${replitDomain}`;
-  // 4. Fallback: real window origin (works correctly in production/deployed)
   return window.location.origin;
 }
 
