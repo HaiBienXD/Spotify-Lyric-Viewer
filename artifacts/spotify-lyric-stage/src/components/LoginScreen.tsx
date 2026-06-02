@@ -1,10 +1,18 @@
 import { useState, useCallback } from "react";
-import { redirectToSpotifyLogin } from "../lib/spotify";
+import { redirectToSpotifyLogin, getCurrentRedirectUri } from "../lib/spotify";
 import { motion } from "framer-motion";
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const redirectUri = getCurrentRedirectUri();
+
+  const copyUri = useCallback(() => {
+    navigator.clipboard.writeText(redirectUri);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [redirectUri]);
 
   const handleConnect = useCallback(async () => {
     setError("");
@@ -55,6 +63,31 @@ export default function LoginScreen() {
         >
           {loading ? "Redirecting…" : "Connect with Spotify"}
         </button>
+
+        {/* Redirect URI helper */}
+        <div className="mt-8 w-full max-w-md text-center">
+          <p className="text-xs text-gray-500 mb-2">
+            Register this exact URL as a Redirect URI in your{" "}
+            <a
+              href="https://developer.spotify.com/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-400 underline underline-offset-2 hover:text-white transition-colors"
+            >
+              Spotify Developer Dashboard
+            </a>
+          </p>
+          <button
+            onClick={copyUri}
+            className="w-full flex items-center justify-between gap-2 rounded-xl px-4 py-2.5 font-mono text-xs text-left transition-colors hover:bg-white/10"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+            data-testid="button-copy-redirect-uri"
+            title="Click to copy"
+          >
+            <span className="text-[#1DB954] truncate">{redirectUri}</span>
+            <span className="flex-shrink-0 text-gray-400">{copied ? "Copied!" : "Copy"}</span>
+          </button>
+        </div>
       </motion.div>
     </div>
   );
