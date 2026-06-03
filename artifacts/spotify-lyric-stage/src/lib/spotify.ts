@@ -1,6 +1,6 @@
 import { generateRandomString, generateCodeChallenge } from "./pkce";
 
-const SCOPES = "user-read-currently-playing user-read-playback-state user-read-recently-played";
+const SCOPES = "user-read-currently-playing user-read-playback-state user-read-recently-played user-modify-playback-state user-read-playback-queue";
 const DEFAULT_CLIENT_ID = "0b0dd397bce54d04af1df5bcada7904e";
 
 function getClientId(): string {
@@ -186,4 +186,31 @@ export async function fetchSpotifyApi(endpoint: string, options: RequestInit = {
   }
 
   return res;
+}
+
+export async function controlPlayback(action: "play" | "pause" | "next" | "previous") {
+  if (action === "next") return fetchSpotifyApi("/me/player/next", { method: "POST" });
+  if (action === "previous") return fetchSpotifyApi("/me/player/previous", { method: "POST" });
+  if (action === "play") return fetchSpotifyApi("/me/player/play", { method: "PUT" });
+  if (action === "pause") return fetchSpotifyApi("/me/player/pause", { method: "PUT" });
+}
+
+export async function fetchAudioFeatures(trackId: string) {
+  const res = await fetchSpotifyApi(`/audio-features/${trackId}`);
+  if (res.ok) return res.json();
+  return null;
+}
+
+export async function fetchQueue() {
+  const res = await fetchSpotifyApi("/me/player/queue");
+  if (res.ok) return res.json();
+  return null;
+}
+
+export async function setShuffleState(state: boolean) {
+  return fetchSpotifyApi(`/me/player/shuffle?state=${state}`, { method: "PUT" });
+}
+
+export async function setRepeatMode(mode: "off" | "track" | "context") {
+  return fetchSpotifyApi(`/me/player/repeat?state=${mode}`, { method: "PUT" });
 }
