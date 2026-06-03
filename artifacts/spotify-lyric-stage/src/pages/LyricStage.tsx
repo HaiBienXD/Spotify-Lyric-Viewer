@@ -97,7 +97,20 @@ function DiscArt({
         className="absolute rounded-full overflow-hidden"
         style={{ inset: "15%", ...spinStyle }}
       >
-        {albumArt && <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />}
+        <AnimatePresence mode="popLayout">
+          {albumArt && (
+            <motion.img
+              key={albumArt}
+              src={albumArt}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8 }}
+              className="w-full h-full object-cover absolute inset-0"
+              alt={albumName}
+            />
+          )}
+        </AnimatePresence>
       </div>
       {/* Center spindle */}
       <div
@@ -523,9 +536,9 @@ export default function LyricStage() {
           justifyContent: "center",
         }}>
 
-        {/* Left panel: disc + info — hidden in word mode when lyrics playing */}
+        {/* Left panel: disc + info — hidden in word mode */}
         <AnimatePresence>
-          {!(lyricsMode === "word" && activeIndex >= 0) && (
+          {lyricsMode !== "word" && (
             <motion.div
               key="left"
               initial={{ opacity:0, x:-40 }}
@@ -612,6 +625,8 @@ export default function LyricStage() {
             error={error}
             mode={lyricsMode}
             beat={beat}
+            queue={queue}
+            onNext={next}
           />
         </div>
       </div>

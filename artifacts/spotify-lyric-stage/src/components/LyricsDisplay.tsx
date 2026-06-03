@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { LyricLine } from "../lib/lrcParser";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -15,10 +15,12 @@ interface LyricsDisplayProps {
   error: string | null;
   mode?: LyricsMode;
   beat?: number;
+  queue?: any[];
+  onNext?: () => void;
 }
 
 export default function LyricsDisplay({
-  lyrics, currentTime, fontSize, isLoading, error, mode = "word", beat = 0,
+  lyrics, currentTime, fontSize, isLoading, error, mode = "word", beat = 0, queue = [], onNext,
 }: LyricsDisplayProps) {
   const adjustedTime = currentTime + LYRIC_OFFSET;
 
@@ -62,27 +64,59 @@ export default function LyricsDisplay({
         adjustedTime={adjustedTime}
         fontSize={fontSize}
         pulse={pulse}
+        queue={queue}
+        onNext={onNext}
       />
     );
   }
 
   return (
-    <LineMode lyrics={lyrics} activeIndex={activeIndex} fontSize={fontSize} pulse={pulse} />
+    <LineMode lyrics={lyrics} activeIndex={activeIndex} fontSize={fontSize} pulse={pulse} queue={queue} onNext={onNext} />
+  );
+}
+
+function NextTrackCard({ track, onClick }: { track: any; onClick?: () => void }) {
+  if (!track) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 0.85, y: 0 }}
+      whileHover={{ opacity: 1, scale: 1.03 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      onClick={onClick}
+      className="cursor-pointer p-3.5 rounded-2xl bg-white/5 hover:bg-white/8 border border-white/8 backdrop-blur-md flex items-center gap-3.5 max-w-[340px] w-full mx-auto shadow-lg"
+    >
+      <img src={track.album?.images?.[0]?.url} className="w-10 h-10 rounded-lg object-cover shadow shrink-0" alt="" />
+      <div className="flex-1 min-w-0 text-left">
+        <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-white/50 mb-0.5">
+          Next Track
+        </span>
+        <p className="text-white font-semibold text-xs truncate leading-tight">{track.name}</p>
+        <p className="text-white/45 text-[11px] truncate leading-tight">{track.artists?.[0]?.name}</p>
+      </div>
+      <div className="w-7 h-7 rounded-full flex items-center justify-center bg-white/8 hover:bg-white/15 transition-colors shrink-0">
+        <span className="text-white/85 text-xs">⏭️</span>
+      </div>
+    </motion.div>
   );
 }
 
 function WordMode({
-  lyrics, activeIndex, adjustedTime, fontSize, pulse,
+  lyrics, activeIndex, adjustedTime, fontSize, pulse, queue, onNext,
 }: {
   lyrics: LyricLine[];
   activeIndex: number;
   adjustedTime: number;
   fontSize: number;
   pulse: boolean;
+  queue: any[];
+  onNext?: () => void;
 }) {
   const prev = activeIndex > 0 ? lyrics[activeIndex - 1] : null;
   const curr = activeIndex >= 0 ? lyrics[activeIndex] : null;
   const next = activeIndex >= 0 && activeIndex < lyrics.length - 1 ? lyrics[activeIndex + 1] : null;
+
+  const nextTrack = queue && queue.length > 0 ? queue[0] : null;
 
   const nextTime = next ? next.time : curr ? curr.time + 5 : 0;
   const lineDur  = curr ? Math.max(0.5, nextTime - curr.time) : 5;
@@ -121,7 +155,7 @@ function WordMode({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        overflow: "hidden",
+        overflow: "visible",
       }}>
         <AnimatePresence mode="popLayout">
           {curr ? (
@@ -162,7 +196,6 @@ function WordMode({
                           : "none",
                         transition: "color 0.2s ease, text-shadow 0.15s ease",
                         display: "inline-block",
-                        willChange: "color, text-shadow",
                       }}
                     >
                       {word}
@@ -221,13 +254,19 @@ function WordMode({
         </AnimatePresence>
       </div>
 
-      {/* ── Next line ── */}
-      <AnimatedSideRow
-        line={next}
-        fontSize={smSize}
-        xsFontSize={xsSize}
-        opacity={next ? 0.22 : 0}
-      />
+      {/* ── Next line or Next track preview ── */}
+      {next ? (
+        <AnimatedSideRow
+          line={next}
+          fontSize={smSize}
+          xsFontSize={xsSize}
+          opacity={0.22}
+        />
+      ) : nextTrack ? (
+        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+          <NextTrackCard track={nextTrack} onClick={onNext} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -291,74 +330,120 @@ function AnimatedSideRow({
 }
 
 function LineMode({
-  lyrics, activeIndex, fontSize, pulse,
+  lyrics, activeIndex, fontSize, pulse, queue, onNext,
 }: {
   lyrics: LyricLine[];
   activeIndex: number;
+  connectedActiveRef?: any;
   fontSize: number;
   pulse: boolean;
+  queue: any[];
+  onNext?: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeRef    = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  const [offsetY, setOffsetY] = useState(0);
+
+  const updateScroll = useCallback(() => {
     if (activeRef.current && containerRef.current) {
-      const c  = containerRef.current;
+      const c = containerRef.current;
       const el = activeRef.current;
       const target = el.offsetTop - c.clientHeight / 2 + el.offsetHeight / 2;
-      c.scrollTo({ top: target, behavior: "smooth" });
+      setOffsetY(-target);
+    } else {
+      setOffsetY(0);
     }
   }, [activeIndex]);
+
+  useEffect(() => {
+    updateScroll();
+    window.addEventListener("resize", updateScroll);
+    return () => window.removeEventListener("resize", updateScroll);
+  }, [updateScroll]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-y-auto relative"
-      style={{ scrollbarWidth: "none", padding: "0 clamp(20px, 5vw, 56px)", position: "relative" }}
+      className="w-full h-full overflow-hidden relative"
+      style={{ padding: "0 clamp(20px, 5vw, 56px)", position: "relative" }}
     >
-      <div style={{ height: "46%" }} />
-      {lyrics.map((line, idx) => {
-        const isActive = idx === activeIndex;
-        const dist     = Math.abs(idx - activeIndex);
-        let opacity = 0.10;
-        if (isActive)        opacity = 1;
-        else if (dist === 1) opacity = 0.40;
-        else if (dist === 2) opacity = 0.22;
-        else if (dist === 3) opacity = 0.13;
+      <motion.div
+        animate={{ y: offsetY }}
+        transition={{ type: "spring", damping: 30, stiffness: 80, mass: 1 }}
+        className="w-full"
+      >
+        <div style={{ height: "46%" }} />
+        {lyrics.map((line, idx) => {
+          const isActive = idx === activeIndex;
+          const dist     = Math.abs(idx - activeIndex);
+          let opacity = 0.10;
+          if (isActive)        opacity = 1;
+          else if (dist === 1) opacity = 0.40;
+          else if (dist === 2) opacity = 0.22;
+          else if (dist === 3) opacity = 0.13;
 
-        return (
-          <div key={idx} ref={isActive ? activeRef : undefined} style={{ padding: "5px 0" }}>
-            <div style={{
-              fontSize: `${fontSize}rem`,
-              fontFamily: LYRIC_FONT,
-              fontWeight: 600,
-              opacity,
-              color: isActive ? "var(--extracted-primary, #ffffff)" : "rgba(255,255,255,0.95)",
-              textShadow: isActive
-                ? `0 0 20px var(--extracted-primary, rgba(255,255,255,0.5)),
-                   0 0 50px var(--extracted-primary, rgba(255,255,255,0.12)),
-                   0 2px 12px rgba(0,0,0,0.9)`
-                : "none",
-              transition: "opacity 0.5s ease, font-weight 0.4s ease, text-shadow 0.15s ease",
-              lineHeight: 1.45,
-              willChange: "text-shadow",
-            }}>
-              {line.text || "♪"}
-            </div>
-            {line.translation && isActive && (
+          return (
+            <div key={idx} ref={isActive ? activeRef : undefined} style={{ padding: "5px 0" }}>
               <div style={{
-                fontSize: `${fontSize * 0.55}rem`,
+                fontSize: `${fontSize}rem`,
                 fontFamily: LYRIC_FONT,
-                fontStyle: "italic",
-                color: "rgba(255,255,255,0.45)",
-                marginTop: "0.15em",
+                fontWeight: 600,
+                opacity,
+                color: isActive ? "var(--extracted-primary, #ffffff)" : "rgba(255,255,255,0.95)",
+                textShadow: isActive
+                  ? `0 0 20px var(--extracted-primary, rgba(255,255,255,0.5)),
+                     0 0 50px var(--extracted-primary, rgba(255,255,255,0.12)),
+                     0 2px 12px rgba(0,0,0,0.9)`
+                  : "none",
+                transition: "opacity 0.5s ease, font-weight 0.4s ease, text-shadow 0.15s ease",
+                lineHeight: 1.45,
               }}>
-                {line.translation}
+                {line.text || "♪"}
               </div>
-            )}
-          </div>
-        );
-      })}
-      <div style={{ height: "46%" }} />
+              {line.translation && isActive && (
+                <div style={{
+                  fontSize: `${fontSize * 0.55}rem`,
+                  fontFamily: LYRIC_FONT,
+                  fontStyle: "italic",
+                  color: "rgba(255,255,255,0.45)",
+                  marginTop: "0.15em",
+                }}>
+                  {line.translation}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        
+        {/* Next track preview in LineMode */}
+        {queue && queue.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 0.85, y: 0 }}
+            whileHover={{ opacity: 1, scale: 1.03 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            onClick={onNext}
+            className="mt-8 mb-4 p-3.5 rounded-2xl bg-white/5 hover:bg-white/8 border border-white/8 backdrop-blur-md flex items-center justify-between gap-4 max-w-sm mx-auto shadow-lg cursor-pointer transition-all"
+            style={{ fontFamily: LYRIC_FONT }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <img src={queue[0].album.images[0]?.url} className="w-11 h-11 rounded-lg object-cover shadow shrink-0" alt="" />
+              <div className="min-w-0 text-left">
+                <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-white/50 mb-0.5">
+                  Next Track
+                </span>
+                <p className="text-white font-semibold text-xs truncate leading-tight">{queue[0].name}</p>
+                <p className="text-white/45 text-[11px] truncate leading-tight">{queue[0].artists[0]?.name}</p>
+              </div>
+            </div>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center bg-white/8 hover:bg-white/15 transition-colors shrink-0">
+              <span className="text-[#1db954] text-xs font-bold">⏭️</span>
+            </div>
+          </motion.div>
+        )}
+        
+        <div style={{ height: "46%" }} />
+      </motion.div>
     </div>
   );
 }

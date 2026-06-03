@@ -223,3 +223,15 @@ export async function playTrack(trackUri: string) {
     body: JSON.stringify({ uris: [trackUri] }),
   });
 }
+
+export async function getRecommendations(seedTrackId: string) {
+  const res = await fetchSpotifyApi(`/recommendations?seed_tracks=${seedTrackId}&limit=10`);
+  if (res.ok) return res.json();
+  return null;
+}
+
+export async function searchTracks(query: string) {
+  const res = await fetchSpotifyApi(`/search?q=${encodeURIComponent(query)}&type=track&limit=15`);
+  if (res.ok) return res.json();
+  return null;
+}
