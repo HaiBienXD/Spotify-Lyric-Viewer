@@ -3,18 +3,10 @@ import { useLyrics } from "@/hooks/useLyrics";
 import { usePlaybackSync } from "@/hooks/usePlaybackSync";
 import { useTheme } from "@/hooks/useTheme";
 import { useColorExtraction } from "@/hooks/useColorExtraction";
-import { useBeat } from "@/hooks/useBeat";
-import LyricsDisplay, { LyricsMode } from "@/components/LyricsDisplay";
-import Visualizer, { VISUALIZER_COUNT, VisualizerNames } from "@/components/Visualizer";
-import BeatFlash from "@/components/BeatFlash";
-import BeatWave from "@/components/BeatWave";
-import QueuePanel from "@/components/QueuePanel";
+import LyricsDisplay from "@/components/LyricsDisplay";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useRef, useCallback, Component, ReactNode } from "react";
-import {
-  clearTokens, controlPlayback, fetchAudioFeatures,
-  fetchQueue, setShuffleState, setRepeatMode,
-} from "@/lib/spotify";
+import { useState, Component, ReactNode } from "react";
+import { clearTokens } from "@/lib/spotify";
 import { Theme } from "@/hooks/useTheme";
 
 import NeonBackground from "@/components/backgrounds/NeonBackground";
@@ -28,7 +20,6 @@ import RainBackground from "@/components/backgrounds/RainBackground";
 import FireBackground from "@/components/backgrounds/FireBackground";
 import MinimalBackground from "@/components/backgrounds/MinimalBackground";
 
-// ── Error boundary to prevent black screen on crash ──
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null };
   static getDerivedStateFromError(e: Error) { return { error: e.message }; }
@@ -41,9 +32,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
             onClick={() => { this.setState({ error: null }); window.location.reload(); }}
             className="px-5 py-2 rounded-full text-sm"
             style={{ background: "var(--extracted-primary, #1DB954)", color: "#000" }}
-          >
-            Reload
-          </button>
+          >Reload</button>
         </div>
       );
     }
@@ -62,8 +51,6 @@ function fmt(s: number) {
   return `${m}:${Math.floor(s % 60).toString().padStart(2,"0")}`;
 }
 
-type RepeatMode = "off" | "track" | "context";
-
 const LYRIC_OFFSET = 0.8;
 function getActiveIndex(lyrics: { time: number }[], t: number) {
   const adj = t + LYRIC_OFFSET;
@@ -71,6 +58,14 @@ function getActiveIndex(lyrics: { time: number }[], t: number) {
     if (adj >= lyrics[i].time) return i;
   }
   return -1;
+}
+
+/* ── Polygon helper: n-sided regular polygon points, centered at (0,0) ── */
+function polyPts(n: number, r: number) {
+  return Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+    return `${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}`;
+  }).join(" ");
 }
 
 function LyricStageInner() {
@@ -92,57 +87,9 @@ function LyricStageInner() {
   useColorExtraction(albumArt);
 
   const activeIndex = getActiveIndex(lyrics, currentTime);
-  const beat = useBeat(120, isPlaying);
 
-  const [lyricsMode, setLyricsMode] = useState<LyricsMode>("line");
   const [cinemaMode, setCinemaMode] = useState(false);
-  const [flashOn, setFlashOn]       = useState(false);
-  const [waveOn, setWaveOn]         = useState(true);
-  const [showQueue, setShowQueue]   = useState(false);
   const [showThemes, setShowThemes] = useState(false);
-  const [visType, setVisType]       = useState(0);
-  const [shuffle, setShuffle]       = useState(false);
-  const [repeat, setRepeat]         = useState<RepeatMode>("off");
-  const [queue, setQueue]           = useState<any[]>([]);
-  const [bpm, setBpm]               = useState(120);
-
-  useEffect(() => {
-    if (!track?.id) return;
-    fetchAudioFeatures(track.id).then(d => { if (d?.tempo) setBpm(Math.round(d.tempo)); }).catch(()=>{});
-  }, [track?.id]);
-
-  useEffect(() => {
-    if (!showQueue) return;
-    fetchQueue().then(d => { if (d?.queue) setQueue(d.queue); }).catch(()=>{});
-  }, [showQueue, track?.id]);
-
-  useEffect(() => {
-    if (playbackState?.shuffle_state !== undefined) setShuffle(playbackState.shuffle_state);
-    if ((playbackState as any)?.repeat_state) setRepeat((playbackState as any).repeat_state);
-  }, [(playbackState as any)?.shuffle_state, (playbackState as any)?.repeat_state]);
-
-  const play       = useCallback(() => controlPlayback(isPlaying ? "pause" : "play").catch(()=>{}), [isPlaying]);
-  const next       = useCallback(() => controlPlayback("next").catch(()=>{}), []);
-  const prev       = useCallback(() => controlPlayback("previous").catch(()=>{}), []);
-  const doShuffle  = useCallback(() => { const n=!shuffle; setShuffle(n); setShuffleState(n).catch(()=>{}); }, [shuffle]);
-  const doRepeat   = useCallback(() => {
-    const modes: RepeatMode[] = ["off","context","track"];
-    const n = modes[(modes.indexOf(repeat)+1)%3];
-    setRepeat(n); setRepeatMode(n).catch(()=>{});
-  }, [repeat]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
-      if (e.code === "Space")       { e.preventDefault(); play(); }
-      if (e.code === "ArrowRight")  next();
-      if (e.code === "ArrowLeft")   prev();
-      if (e.key === "f" || e.key === "F") setCinemaMode(m => !m);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [play, next, prev]);
 
   const renderBg = () => {
     switch (theme) {
@@ -204,23 +151,13 @@ function LyricStageInner() {
         </div>
       )}
 
-      {/* ── Theme background — subtle, behind everything ── */}
+      {/* ── Theme background ── */}
       <div className="absolute inset-0 z-[1] pointer-events-none" style={{ opacity: 0.18 }}>
         {renderBg()}
       </div>
 
-      {/* ── Extra dark overlay so theme effects don't bleed into lyrics ── */}
-      <div className="absolute inset-0 z-[2] pointer-events-none" style={{ background: "rgba(0,0,0,0.45)" }} />
-
-      {/* ── Visualizer — bottom portion only, not over lyrics ── */}
-      {visType > 0 && (
-        <div className="absolute inset-0 z-[3] pointer-events-none" style={{ opacity: 0.55 }}>
-          <Visualizer type={visType} />
-        </div>
-      )}
-
-      {/* ── Beat flash ── */}
-      {flashOn && <BeatFlash beat={beat} />}
+      {/* ── Dark overlay ── */}
+      <div className="absolute inset-0 z-[2] pointer-events-none" style={{ background: "rgba(0,0,0,0.40)" }} />
 
       {/* ── Main content area ── */}
       <div className="relative z-[10] flex flex-1 min-h-0 overflow-hidden">
@@ -239,29 +176,29 @@ function LyricStageInner() {
             >
               {/* Needle arm + Disc — geometry computed from discSize */}
               {(() => {
-                // Layout constants
                 const dTop = 34, dLeft = 14;
                 const dCx = dLeft + discSize / 2;
                 const dCy = dTop + discSize / 2;
-                // Needle pivot: top-right of container
                 const pX = discSize + dLeft + 28;
                 const pY = 14;
-                // Touch point on disc groove at ~1-o'clock (28° clockwise from top, 74% radius)
                 const ta = 28 * Math.PI / 180;
                 const tX = dCx + (discSize / 2) * 0.74 * Math.sin(ta);
                 const tY = dCy - (discSize / 2) * 0.74 * Math.cos(ta);
-                // Arm vector
                 const vx = tX - pX, vy = tY - pY;
                 const armLen = Math.sqrt(vx * vx + vy * vy);
-                // Angle from straight-down (+y) to touch point
                 const playAng = Math.atan2(vx, vy) * 180 / Math.PI;
                 const pauseAng = playAng - 26;
                 const ang = isPlaying ? playAng : pauseAng;
-                // Arm tip in unrotated state (straight down from pivot)
                 const tipX = pX, tipY = pY + armLen;
                 const cW = pX + 18;
                 const cH = dTop + discSize + 6;
-                const pr = discSize / 2 + 3;
+                const pr = discSize / 2 + 4;
+
+                // Polygon rings radii (12-sided, 14-sided) — counter-rotating
+                const polyRings = [
+                  { n: 12, r: discSize / 2 + 10, dur: "34s", stroke: "rgba(255,255,255,0.07)", sw: 1.5 },
+                  { n: 8,  r: discSize / 2 + 19, dur: "58s", stroke: "rgba(255,255,255,0.04)", sw: 1 },
+                ];
 
                 return (
                   <div style={{ position: "relative", width: cW, height: cH, flexShrink: 0 }}>
@@ -273,31 +210,73 @@ function LyricStageInner() {
                       animation: `disc-spin ${spinRate} linear infinite`,
                       willChange: "transform",
                     }}>
+                      {/* Vinyl base */}
                       <div style={{ position:"absolute", inset:0, borderRadius:"50%",
-                        background:"radial-gradient(circle at 35% 30%, #3d3d3d 0%, #161616 40%, #1f1f1f 65%, #0a0a0a 100%)",
-                        boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.04)" }} />
-                      {[0.88, 0.78, 0.68, 0.58].map((s, i) => (
+                        background:`radial-gradient(circle at 38% 32%, #3e3e3e 0%, #181818 38%, #1e1e1e 62%, #080808 100%)`,
+                        boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.05)" }} />
+
+                      {/* Groove rings */}
+                      {[0.92, 0.82, 0.72, 0.62, 0.52].map((s, i) => (
                         <div key={i} style={{ position:"absolute", borderRadius:"50%",
-                          border:"1px solid rgba(255,255,255,0.028)", inset:`${(1-s)*50}%` }} />
+                          border:"1px solid rgba(255,255,255,0.025)", inset:`${(1-s)*50}%` }} />
                       ))}
+
+                      {/* Shine facets (da góc) — 3 highlight wedges */}
+                      {[20, 140, 260].map((deg, i) => (
+                        <div key={i} style={{
+                          position: "absolute", inset: 0, borderRadius: "50%",
+                          background: `conic-gradient(from ${deg}deg, transparent 0deg, rgba(255,255,255,0.025) 12deg, transparent 24deg)`,
+                          pointerEvents: "none",
+                        }} />
+                      ))}
+
+                      {/* Album art circle */}
                       <div style={{ position:"absolute", inset:"15%", borderRadius:"50%", overflow:"hidden",
-                        boxShadow:"0 0 0 1.5px rgba(255,255,255,0.06)" }}>
+                        boxShadow:"0 0 0 1.5px rgba(255,255,255,0.07), inset 0 0 20px rgba(0,0,0,0.4)" }}>
                         {albumArt
                           ? <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />
                           : <div className="w-full h-full" style={{ background:"#1a1a1a" }} />
                         }
                       </div>
+
+                      {/* Center hole */}
                       <div style={{ position:"absolute", inset:"44%", borderRadius:"50%",
-                        background:"rgba(255,255,255,0.15)", backdropFilter:"blur(2px)",
+                        background:"rgba(255,255,255,0.14)", backdropFilter:"blur(2px)",
                         boxShadow:"0 0 0 1.5px rgba(0,0,0,0.6)" }} />
                     </div>
 
-                    {/* Progress ring — static, not spinning */}
-                    <svg style={{ position:"absolute", top: dTop - pr + discSize/2,
-                      left: dLeft - pr + discSize/2, pointerEvents:"none" }}
+                    {/* Polygon rings — counter-rotating, outside disc, NOT spinning with disc */}
+                    {polyRings.map((ring, ri) => {
+                      const svgR = ring.r + 2;
+                      const svgSize = svgR * 2 + 4;
+                      const cx2 = dLeft + discSize / 2 - svgR - 2;
+                      const cy2 = dTop  + discSize / 2 - svgR - 2;
+                      return (
+                        <svg key={ri} style={{
+                          position:"absolute", top: cy2, left: cx2,
+                          width: svgSize, height: svgSize,
+                          pointerEvents:"none", zIndex: 2, overflow:"visible",
+                          animation: `disc-spin ${ring.dur} linear infinite reverse`,
+                        }}>
+                          <polygon
+                            points={polyPts(ring.n, ring.r)}
+                            fill="none"
+                            stroke={ring.stroke}
+                            strokeWidth={ring.sw}
+                            transform={`translate(${svgR + 2},${svgR + 2})`}
+                          />
+                        </svg>
+                      );
+                    })}
+
+                    {/* Progress ring — static */}
+                    <svg style={{ position:"absolute",
+                      top: dTop - pr + discSize/2,
+                      left: dLeft - pr + discSize/2,
+                      pointerEvents:"none", zIndex: 3 }}
                       width={pr * 2} height={pr * 2}>
                       <circle cx={pr} cy={pr} r={pr - 2}
-                        fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2.5" />
+                        fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2.5" />
                       <circle cx={pr} cy={pr} r={pr - 2}
                         fill="none" stroke="var(--extracted-primary, #1DB954)"
                         strokeWidth="2.5" strokeLinecap="round"
@@ -308,7 +287,7 @@ function LyricStageInner() {
                           filter:"drop-shadow(0 0 5px var(--extracted-primary, #1DB954))" }} />
                     </svg>
 
-                    {/* Needle arm — SVG with CSS rotate around pivot */}
+                    {/* Needle arm */}
                     <svg style={{ position:"absolute", top:0, left:0, zIndex:9,
                       pointerEvents:"none", overflow:"visible" }}
                       width={cW} height={cH}>
@@ -319,13 +298,18 @@ function LyricStageInner() {
                         filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.9))",
                       }}>
                         <line x1={pX} y1={pY} x2={tipX} y2={tipY}
-                          stroke="#1e1e1e" strokeWidth="7" strokeLinecap="round"/>
+                          stroke="#1c1c1c" strokeWidth="7" strokeLinecap="round"/>
                         <line x1={pX} y1={pY} x2={tipX} y2={tipY}
-                          stroke="#484848" strokeWidth="3.5" strokeLinecap="round"/>
-                        <circle cx={pX} cy={pY} r={13} fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-                        <circle cx={pX} cy={pY} r={5}   fill="#0a0a0a" stroke="#555" strokeWidth="1"/>
-                        <circle cx={tipX} cy={tipY} r={7}   fill="#1a1a1a" stroke="#505050" strokeWidth="1.5"/>
-                        <circle cx={tipX} cy={tipY} r={2.5} fill="#888"/>
+                          stroke="#505050" strokeWidth="3" strokeLinecap="round"/>
+                        {/* Arm highlight */}
+                        <line x1={pX + 1} y1={pY + 4} x2={tipX + 1} y2={tipY - 4}
+                          stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeLinecap="round"/>
+                        <circle cx={pX} cy={pY} r={13} fill="#1c1c1c" stroke="#3c3c3c" strokeWidth="1.5"/>
+                        <circle cx={pX} cy={pY} r={7}  fill="#141414" stroke="#4a4a4a" strokeWidth="1"/>
+                        <circle cx={pX} cy={pY} r={3}  fill="#0a0a0a" stroke="#555" strokeWidth="0.5"/>
+                        <circle cx={tipX} cy={tipY} r={7}   fill="#1a1a1a" stroke="#525252" strokeWidth="1.5"/>
+                        <circle cx={tipX} cy={tipY} r={3}   fill="#666"/>
+                        <circle cx={tipX} cy={tipY} r={1.2} fill="#999"/>
                       </g>
                     </svg>
                   </div>
@@ -335,24 +319,31 @@ function LyricStageInner() {
               {/* Song info */}
               <div className="text-center w-full px-3 flex flex-col gap-1">
                 <h2 className="text-white font-bold line-clamp-2 leading-snug"
-                  style={{ fontSize: "clamp(0.85rem, 1.1vw, 1.1rem)", letterSpacing: "-0.02em",
+                  style={{ fontSize: "clamp(0.85rem, 1.1vw, 1.05rem)", letterSpacing: "-0.02em",
                     textShadow: "0 1px 12px rgba(0,0,0,0.8)" }}>
                   {trackName}
                 </h2>
-                <p className="text-white/45 text-sm line-clamp-1" style={{ fontSize: "0.78rem" }}>{artistName}</p>
-                <p className="text-white/20 text-xs line-clamp-1" style={{ fontSize: "0.7rem" }}>{albumName}</p>
+                <p className="text-white/45 line-clamp-1" style={{ fontSize: "0.76rem" }}>{artistName}</p>
+                <p className="text-white/22 text-xs line-clamp-1" style={{ fontSize: "0.68rem" }}>{albumName}</p>
               </div>
 
-              {/* Wave if on */}
-              {waveOn && (
-                <div style={{ width: Math.min(discSize * 0.75, 140), height: 28, overflow: "hidden" }}>
-                  <BeatWave beat={beat} bpm={bpm} isPlaying={isPlaying} />
+              {/* Progress time */}
+              <div className="flex items-center gap-2 w-full px-3">
+                <span className="text-white/22 tabular-nums" style={{ fontSize: "0.68rem" }}>{fmt(currentTime)}</span>
+                <div className="flex-1 h-[2px] rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+                  <div className="h-full rounded-full" style={{
+                    width: `${progress * 100}%`,
+                    background: "var(--extracted-primary, #1DB954)",
+                    boxShadow: "0 0 6px var(--extracted-primary, #1DB954)",
+                    transition: "width 0.35s linear",
+                  }} />
                 </div>
-              )}
+                <span className="text-white/22 tabular-nums" style={{ fontSize: "0.68rem" }}>{fmt(durationMs / 1000)}</span>
+              </div>
 
               <button onClick={() => { clearTokens(); window.location.reload(); }}
                 className="text-white/12 hover:text-white/35 transition-colors"
-                style={{ fontSize: "0.65rem", letterSpacing: "0.12em" }}>
+                style={{ fontSize: "0.62rem", letterSpacing: "0.12em" }}>
                 DISCONNECT
               </button>
             </motion.div>
@@ -361,10 +352,9 @@ function LyricStageInner() {
 
         {/* RIGHT PANEL: Lyrics */}
         <div className="flex-1 min-w-0 relative">
-          {/* Left fade gradient */}
           {!cinemaMode && (
             <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
-              style={{ background: "linear-gradient(to right, rgba(0,0,0,0.4), transparent)" }} />
+              style={{ background: "linear-gradient(to right, rgba(0,0,0,0.35), transparent)" }} />
           )}
           <LyricsDisplay
             lyrics={lyrics}
@@ -372,112 +362,45 @@ function LyricStageInner() {
             fontSize={fontSize}
             isLoading={isLoading}
             error={error}
-            mode={lyricsMode}
+            mode="word"
           />
         </div>
       </div>
 
-      {/* Queue panel */}
-      <QueuePanel isOpen={showQueue} onClose={() => setShowQueue(false)} queue={queue} currentTrack={track} />
+      {/* ── Bottom bar — minimal ── */}
+      <div className="relative z-[20] shrink-0 flex items-center justify-between px-4 py-3"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)" }}>
 
-      {/* ── Bottom bar ── */}
-      <div
-        className="relative z-[20] shrink-0"
-        style={{
-          background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 70%, transparent 100%)",
-          paddingBottom: "env(safe-area-inset-bottom, 4px)",
-        }}
-      >
-        {/* Progress bar */}
-        <div className="flex items-center gap-2 px-4 pt-3 pb-1">
-          <span className="text-white/25 text-xs tabular-nums w-9 text-right shrink-0">{fmt(currentTime)}</span>
-          <div className="flex-1 h-[3px] rounded-full cursor-pointer overflow-visible relative"
-            style={{ background: "rgba(255,255,255,0.08)" }}>
-            <motion.div
-              className="h-full rounded-full relative"
-              style={{
-                background: "var(--extracted-primary, #1DB954)",
-                boxShadow: "0 0 8px var(--extracted-primary, #1DB954)",
-              }}
-              animate={{ width: `${progress * 100}%` }}
-              transition={{ duration: 0.35, ease: "linear" }}
-            >
-              {/* Thumb */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md"
-                style={{ boxShadow: "0 0 6px var(--extracted-primary, #1DB954)" }} />
-            </motion.div>
-          </div>
-          <span className="text-white/25 text-xs tabular-nums w-9 shrink-0">{fmt(durationMs / 1000)}</span>
+        {/* Font size controls */}
+        <div className="flex items-center gap-1">
+          <button onClick={() => setFontSize(Math.max(1.2, fontSize - 0.15))}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/10 active:scale-90"
+            style={{ color:"rgba(255,255,255,0.45)", fontSize:"0.7rem", fontFamily:"Georgia,serif" }}>A</button>
+          <div className="w-[1px] h-3 mx-0.5" style={{ background: "rgba(255,255,255,0.1)" }} />
+          <button onClick={() => setFontSize(Math.min(4.5, fontSize + 0.15))}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/10 active:scale-90"
+            style={{ color:"rgba(255,255,255,0.7)", fontSize:"1rem", fontWeight:700, fontFamily:"Georgia,serif" }}>A</button>
         </div>
 
-        {/* Controls row — 3 columns */}
-        <div className="grid pb-3 pt-0.5 px-3" style={{ gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "0 8px" }}>
+        {/* Right side: theme + cinema */}
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowThemes(t=>!t)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs transition-all hover:scale-105"
+            style={showThemes
+              ? { background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.25)" }
+              : { background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.45)", border:"1px solid rgba(255,255,255,0.09)" }}
+          >
+            {THEME_ICONS[theme]} <span style={{ fontSize:"0.68rem" }}>{theme}</span>
+          </button>
 
-          {/* LEFT: effects */}
-          <div className="flex items-center gap-1">
-            <SBtn active={flashOn} onClick={() => setFlashOn(f=>!f)} color="#ffd700" title="Beat Flash">⚡</SBtn>
-            <SBtn active={waveOn}  onClick={() => setWaveOn(w=>!w)}  color="var(--extracted-primary,#1DB954)" title="Wave">〜</SBtn>
-            <SBtn active={lyricsMode==="word"} onClick={() => setLyricsMode(m => m==="line"?"word":"line")} color="#c879ff" title="Word mode">字</SBtn>
-            <SBtn active={visType > 0} onClick={() => setVisType(v => (v+1)%VISUALIZER_COUNT)} color="#60a5fa" title={VisualizerNames[visType]}>
-              {["♫","◎","▌▐","✦","≋","⬡","⚡","⊙","✶","✺","◈","⬢","✧","⌘","❋","◉","⟡","⊛","⬟"][visType] || "♫"}
-            </SBtn>
-          </div>
-
-          {/* CENTER: playback */}
-          <div className="flex items-center gap-1">
-            <Btn active={shuffle} onClick={doShuffle} title="Shuffle">⇄</Btn>
-
-            <Btn onClick={prev} title="Previous">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-            </Btn>
-
-            <button onClick={play}
-              className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
-              style={{ background: "var(--extracted-primary, #1DB954)", color: "#000",
-                boxShadow: "0 0 16px var(--extracted-primary, #1DB954)" }}
-            >
-              {isPlaying
-                ? <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                : <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft:2 }}><path d="M8 5v14l11-7z"/></svg>
-              }
-            </button>
-
-            <Btn onClick={next} title="Next">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/></svg>
-            </Btn>
-
-            <Btn active={repeat !== "off"} onClick={doRepeat} title={`Repeat: ${repeat}`}>
-              {repeat === "track" ? "🔂" : "🔁"}
-            </Btn>
-          </div>
-
-          {/* RIGHT: tools */}
-          <div className="flex items-center gap-1 justify-end">
-            {/* Font size */}
-            <button onClick={() => setFontSize(Math.max(1.2, fontSize - 0.2))}
-              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/10 transition-all"
-              style={{ color:"rgba(255,255,255,0.35)", fontSize:"0.65rem" }}>A</button>
-            <button onClick={() => setFontSize(Math.min(4.5, fontSize + 0.2))}
-              className="w-6 h-6 rounded-full flex items-center justify-center font-bold hover:bg-white/10 transition-all"
-              style={{ color:"rgba(255,255,255,0.65)", fontSize:"0.95rem" }}>A</button>
-
-            <SBtn active={showQueue} onClick={() => setShowQueue(q=>!q)} color="#fff" title="Queue">≡</SBtn>
-
-            {/* Theme picker */}
-            <button onClick={() => setShowThemes(t=>!t)}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all hover:scale-105 shrink-0"
-              style={showThemes
-                ? { background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.25)" }
-                : { background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.45)", border:"1px solid rgba(255,255,255,0.1)" }}
-            >
-              {THEME_ICONS[theme]}
-            </button>
-
-            {/* Cinema mode */}
-            <SBtn active={cinemaMode} onClick={() => setCinemaMode(m => !m)} color="#ff6060" title="Cinema mode (F)">
-              {cinemaMode ? "⊠" : "⛶"}
-            </SBtn>
-          </div>
+          <button onClick={() => setCinemaMode(m => !m)}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-base transition-all hover:scale-110 active:scale-90"
+            style={cinemaMode
+              ? { color:"#ff8080", background:"rgba(255,80,80,0.12)", border:"1px solid rgba(255,80,80,0.2)" }
+              : { color:"rgba(255,255,255,0.38)" }}
+            title="Cinema mode">
+            {cinemaMode ? "⊠" : "⛶"}
+          </button>
         </div>
       </div>
 
@@ -491,7 +414,7 @@ function LyricStageInner() {
             transition={{ duration:0.2 }}
             className="absolute z-[30] px-3 py-2.5 rounded-2xl flex flex-wrap gap-1.5"
             style={{
-              bottom: 90, right: 12,
+              bottom: 68, right: 12,
               background:"rgba(8,8,18,0.97)", backdropFilter:"blur(24px)",
               border:"1px solid rgba(255,255,255,0.1)", maxWidth: 340,
               boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
@@ -519,34 +442,5 @@ export default function LyricStage() {
     <ErrorBoundary>
       <LyricStageInner />
     </ErrorBoundary>
-  );
-}
-
-// ── Button components ──
-function Btn({ children, active, onClick, title }: {
-  children: ReactNode; active?: boolean; onClick: () => void; title?: string;
-}) {
-  return (
-    <button onClick={onClick} title={title}
-      className="w-8 h-8 flex items-center justify-center rounded-full text-base transition-all hover:scale-110 active:scale-90 shrink-0"
-      style={{
-        color: active ? "var(--extracted-primary, #1DB954)" : "rgba(255,255,255,0.5)",
-        background: active ? "var(--extracted-primary-alpha, rgba(29,185,84,0.12))" : "transparent",
-      }}
-    >{children}</button>
-  );
-}
-
-function SBtn({ children, active, onClick, color, title }: {
-  children: ReactNode; active?: boolean; onClick: () => void; color?: string; title?: string;
-}) {
-  return (
-    <button onClick={onClick} title={title}
-      className="w-7 h-7 flex items-center justify-center rounded-full text-sm transition-all hover:scale-110 active:scale-90 shrink-0"
-      style={active
-        ? { background:`${color || "#fff"}1a`, color: color || "#fff", border:`1px solid ${color || "#fff"}33`,
-            boxShadow:`0 0 8px ${color || "#fff"}22` }
-        : { color:"rgba(255,255,255,0.38)", background:"transparent" }}
-    >{children}</button>
   );
 }
