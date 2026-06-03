@@ -41,6 +41,12 @@ function fmt(s: number) {
 
 type RepeatMode = "off" | "track" | "context";
 
+const VIS_ICONS = [
+  "❌", "◎", "📊", "✨", "🌊", "🧬",
+  "📺", "🌀", "⭐", "🎡", "🎨", "🌐",
+  "🎆", "❄️", "⚡", "🌊", "🌳", "⭕", "🪐"
+];
+
 // Lyric offset (in seconds) applied globally for active-index calculation
 const LYRIC_OFFSET = 0.5;
 
@@ -145,6 +151,7 @@ export default function LyricStage() {
   const [waveOn, setWaveOn]             = useState(true);
   const [showQueue, setShowQueue]       = useState(false);
   const [showThemes, setShowThemes]     = useState(false);
+  const [showVisualizers, setShowVisualizers] = useState(false);
   const [visType, setVisType]           = useState(0);
 
   const [isLandscape, setIsLandscape]   = useState(window.innerWidth > window.innerHeight);
@@ -644,11 +651,38 @@ export default function LyricStage() {
               
               {/* Left Column: Visual effects */}
               <div className="flex items-center gap-1.5 justify-start">
-                <SmallBtn active={lyricsMode==="word"} onClick={() => setLyricsMode(m => m==="line"?"word":"line")} color="#c879ff" title="Word mode">字</SmallBtn>
+                <SmallBtn
+                  active={lyricsMode==="word"}
+                  onClick={() => setLyricsMode(m => m==="line"?"word":"line")}
+                  color="#c879ff"
+                  title="Toggle Layout"
+                >
+                  {lyricsMode === "word" ? (
+                    // Focused karaoke line icon
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="4" y1="12" x2="20" y2="12" />
+                    </svg>
+                  ) : (
+                    // Multi-line list icon
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="4" y1="6" x2="20" y2="6" />
+                      <line x1="4" y1="12" x2="20" y2="12" />
+                      <line x1="4" y1="18" x2="20" y2="18" />
+                    </svg>
+                  )}
+                </SmallBtn>
                 
-                {/* Visualizer cycle */}
-                <SmallBtn active={visType>0} onClick={() => setVisType(v=>(v+1)%VISUALIZER_COUNT)} color="#60a5fa" title={VisualizerNames[visType]}>
-                  {["♫","◎","▌▐","✦","≋","⬡","⚡","⊙","✶","✺"][visType] || "♫"}
+                {/* Visualizer picker trigger */}
+                <SmallBtn
+                  active={showVisualizers || visType>0}
+                  onClick={() => {
+                    setShowVisualizers(!showVisualizers);
+                    setShowThemes(false);
+                  }}
+                  color="#60a5fa"
+                  title="Select Visualizer"
+                >
+                  {VIS_ICONS[visType] || "♫"}
                 </SmallBtn>
               </div>
 
@@ -696,7 +730,7 @@ export default function LyricStage() {
                 <SmallBtn active={showQueue} onClick={() => setShowQueue(q=>!q)} color="#fff" title="Queue">≡</SmallBtn>
 
                 {/* Theme picker trigger */}
-                <button onClick={() => setShowThemes(t=>!t)}
+                <button onClick={() => { setShowThemes(t=>!t); setShowVisualizers(false); }}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs transition-all hover:scale-105"
                   style={showThemes
                     ? { background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.25)" }
@@ -739,6 +773,32 @@ export default function LyricStage() {
                   : { background:"rgba(255,255,255,0.08)", color:"rgba(255,255,255,0.65)", border:"1px solid rgba(255,255,255,0.1)" }}
               >
                 {THEME_ICONS[t]} {t}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Visualizer picker flyout */}
+      <AnimatePresence>
+        {showVisualizers && (
+          <motion.div
+            initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:8 }}
+            className="absolute z-[25] p-3 rounded-2xl flex flex-wrap gap-1.5"
+            style={{
+              bottom: `${BOTTOM_H+8}px`, left:12,
+              background:"rgba(10,10,16,0.97)", backdropFilter:"blur(24px)",
+              border:"1px solid rgba(255,255,255,0.1)", maxWidth:340,
+            }}
+          >
+            {VisualizerNames.map((name, idx) => (
+              <button key={name} onClick={() => { setVisType(idx); setShowVisualizers(false); }}
+                className="px-2.5 py-1 rounded-full text-xs transition-all hover:scale-105 whitespace-nowrap"
+                style={visType===idx
+                  ? { background:"var(--extracted-primary,#1DB954)", color:"#000", fontWeight:700 }
+                  : { background:"rgba(255,255,255,0.08)", color:"rgba(255,255,255,0.65)", border:"1px solid rgba(255,255,255,0.1)" }}
+              >
+                {VIS_ICONS[idx]} {name}
               </button>
             ))}
           </motion.div>
