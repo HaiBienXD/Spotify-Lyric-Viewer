@@ -165,7 +165,8 @@ export default function LyricStage() {
   const [showQueue, setShowQueue]       = useState(false);
   const [showThemes, setShowThemes]     = useState(false);
   const [showVisualizers, setShowVisualizers] = useState(false);
-  const [visType, setVisType]           = useState(0);
+  const [visType, setVisType]           = useState(10);
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
 
   const [isLandscape, setIsLandscape]   = useState(window.innerWidth > window.innerHeight);
   const [discSize, setDiscSize]         = useState(200);
@@ -477,6 +478,7 @@ export default function LyricStage() {
   }
 
   const BOTTOM_H = 96;
+  const isBottomBarVisible = (!stageMode || showControls) && !controlsCollapsed;
 
   return (
     <div className="w-full h-screen bg-black text-white overflow-hidden relative select-none"
@@ -636,7 +638,7 @@ export default function LyricStage() {
 
       {/* ── Bottom bar ── */}
       <AnimatePresence>
-        {(!stageMode || showControls) && (
+        {isBottomBarVisible && (
           <motion.div
             key="bottom"
             initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
@@ -767,6 +769,29 @@ export default function LyricStage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Toggle Controls Button ── */}
+      <motion.button
+        onClick={() => setControlsCollapsed(!controlsCollapsed)}
+        animate={{ 
+          bottom: isBottomBarVisible ? 102 : 16,
+          opacity: (!stageMode || showControls) ? 1 : 0,
+          scale: (!stageMode || showControls) ? 1 : 0 
+        }}
+        transition={{ type: "spring", stiffness: 120, damping: 20 }}
+        className="absolute left-1/2 -translate-x-1/2 z-[30] w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 border border-white/10 backdrop-blur-md flex items-center justify-center text-white/60 hover:text-white transition-colors shadow-lg"
+        title={controlsCollapsed ? "Show Controls" : "Hide Controls"}
+      >
+        {controlsCollapsed ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        )}
+      </motion.button>
 
       {/* Theme picker flyout */}
       <AnimatePresence>

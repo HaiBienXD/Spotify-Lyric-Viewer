@@ -140,13 +140,7 @@ function WordMode({
       overflow: "hidden",
     }}>
 
-      {/* ── Previous line ── */}
-      <AnimatedSideRow
-        line={prev}
-        fontSize={smSize}
-        xsFontSize={xsSize}
-        opacity={prev ? 0.30 : 0}
-      />
+
 
       {/* ── Current line — word-by-word ── */}
       <div style={{
@@ -161,10 +155,10 @@ function WordMode({
           {curr ? (
             <motion.div
               key={curr.time}
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.28, ease: "easeInOut" }}
               style={{
                 display: "flex", flexWrap: "wrap",
                 justifyContent: "center", alignItems: "center",
