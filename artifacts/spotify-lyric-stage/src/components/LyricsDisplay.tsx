@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef } from "react";
 import { LyricLine } from "../lib/lrcParser";
 
 export type LyricsMode = "line" | "word";
 
-// Show lyrics 0.5s earlier so they match the singer
-const LYRIC_OFFSET = 0.5;
+// Show lyrics earlier so they match the singer
+const LYRIC_OFFSET = 0.8;
 
 interface LyricsDisplayProps {
   lyrics: LyricLine[];
@@ -19,11 +20,30 @@ export default function LyricsDisplay({
   lyrics, currentTime, fontSize, isLoading, error, mode = "line",
 }: LyricsDisplayProps) {
   const adjustedTime = currentTime + LYRIC_OFFSET;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLDivElement>(null);
 
   let activeIndex = -1;
   for (let i = lyrics.length - 1; i >= 0; i--) {
     if (adjustedTime >= lyrics[i].time) { activeIndex = i; break; }
   }
+
+  // Auto-scroll to active line
+  useEffect(() => {
+    if (activeRef.current && containerRef.current) {
+      const container = containerRef.current;
+      const active = activeRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+
+      const targetScroll = active.offsetTop - container.offsetHeight / 2 + activeRect.height / 2;
+
+      container.scrollTo({
+        top: targetScroll,
+        behavior: "smooth",
+      });
+    }
+  }, [activeIndex]);
 
   if (isLoading) {
     return (
@@ -56,108 +76,131 @@ export default function LyricsDisplay({
     return (
       <div className="w-full h-full flex flex-col items-center justify-center px-8 gap-4">
         {activeIndex > 0 && (
-          <p className="text-white/15 text-center" style={{ fontSize: `${fontSize * 0.6}rem` }}>
+          <motion.p
+            key={`prev-${activeIndex}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-white/15 text-center"
+            style={{ fontSize: `${fontSize * 0.6}rem` }}
+          >
             {lyrics[activeIndex - 1].text}
-          </p>
+          </motion.p>
         )}
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 max-w-3xl">
-          {words.map((word, i) => {
-            const isPast = i < wordIndex;
-            const isCurrent = i === wordIndex;
-            return (
-              <motion.span
-                key={`${activeIndex}-${i}`}
-                animate={{
-                  opacity: isPast ? 0.4 : isCurrent ? 1 : 0.15,
-                  scale: isCurrent ? 1.08 : isPast ? 0.92 : 0.82,
-                  color: isCurrent ? "var(--extracted-primary, #fff)" : "#fff",
-                }}
-                transition={{ duration: 0.25, type: "spring", damping: 20 }}
-                className="inline-block leading-tight select-none"
-                style={{
-                  fontSize: `${fontSize * (isCurrent ? 1.1 : 0.85)}rem`,
-                  fontWeight: isCurrent ? 800 : 500,
-                  textShadow: isCurrent
-                    ? "0 0 40px var(--extracted-primary, rgba(255,255,255,0.4))"
-                    : "none",
-                }}
-              >
-                {word}
-              </motion.span>
-            );
-          })}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeIndex}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 max-w-3xl"
+          >
+            {words.map((word, i) => {
+              const isPast = i < wordIndex;
+              const isCurrent = i === wordIndex;
+              return (
+                <motion.span
+                  key={`${activeIndex}-${i}`}
+                  animate={{
+                    opacity: isPast ? 0.4 : isCurrent ? 1 : 0.15,
+                    scale: isCurrent ? 1.08 : isPast ? 0.92 : 0.82,
+                    color: isCurrent ? "var(--extracted-primary, #fff)" : "#fff",
+                  }}
+                  transition={{ duration: 0.25, type: "spring", damping: 20 }}
+                  className="inline-block leading-tight select-none"
+                  style={{
+                    fontSize: `${fontSize * (isCurrent ? 1.1 : 0.85)}rem`,
+                    fontWeight: isCurrent ? 800 : 500,
+                    textShadow: isCurrent
+                      ? "0 0 40px var(--extracted-primary, rgba(255,255,255,0.4))"
+                      : "none",
+                  }}
+                >
+                  {word}
+                </motion.span>
+              );
+            })}
+          </motion.div>
+        </AnimatePresence>
         {activeIndex >= 0 && lyrics[activeIndex + 1] && (
-          <p className="text-white/10 text-center" style={{ fontSize: `${fontSize * 0.6}rem` }}>
+          <motion.p
+            key={`next-${activeIndex}`}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-white/10 text-center"
+            style={{ fontSize: `${fontSize * 0.6}rem` }}
+          >
             {lyrics[activeIndex + 1].text}
-          </p>
+          </motion.p>
         )}
       </div>
     );
   }
 
-  // ── Line-jump mode (default) ── 
-  // No scrolling. Show 5 slots: ±2 lines around active. Each pops in with animation.
-  const slots = [-2, -1, 0, 1, 2] as const;
-
-  const opacityMap = { "-2": 0.12, "-1": 0.35, "0": 1, "1": 0.35, "2": 0.12 };
-  const scaleMap   = { "-2": 0.82, "-1": 0.90, "0": 1.0, "1": 0.90, "2": 0.82 };
-  const sizeMap    = { "-2": 0.68, "-1": 0.82, "0": 1.0, "1": 0.82, "2": 0.68 };
-  const weightMap  = { "-2": 400,  "-1": 500,  "0": 700, "1": 500,  "2": 400 };
-
+  // ── Line mode — scrollable container with auto-scroll ──
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-0 px-6 md:px-16">
-      {slots.map(offset => {
-        const idx = activeIndex + offset;
-        const key = `${offset}`;
-        const valid = idx >= 0 && idx < lyrics.length;
-        const isActive = offset === 0;
+    <div
+      ref={containerRef}
+      className="w-full h-full overflow-y-auto px-6 md:px-16"
+      style={{ scrollbarWidth: "none", scrollBehavior: "smooth" }}
+    >
+      {/* Top padding to center first line */}
+      <div style={{ height: "45%" }} />
+
+      {lyrics.map((line, idx) => {
+        const isActive = idx === activeIndex;
+        const isPast = idx < activeIndex;
+        const distance = Math.abs(idx - activeIndex);
+
+        // Opacity based on distance from active
+        let opacity = 0.12;
+        if (isActive) opacity = 1;
+        else if (distance === 1) opacity = 0.4;
+        else if (distance === 2) opacity = 0.22;
+        else if (distance === 3) opacity = 0.15;
+
+        const scale = isActive ? 1.0 : distance === 1 ? 0.92 : 0.85;
+        const weight = isActive ? 700 : distance <= 1 ? 500 : 400;
+        const sizeMultiplier = isActive ? 1.0 : distance === 1 ? 0.85 : 0.72;
 
         return (
           <div
-            key={key}
-            className="w-full flex items-center justify-center"
-            style={{
-              paddingTop: isActive ? "0.7rem" : "0.3rem",
-              paddingBottom: isActive ? "0.7rem" : "0.3rem",
-              minHeight: isActive ? undefined : "2.5rem",
-            }}
+            key={idx}
+            ref={isActive ? activeRef : undefined}
+            className="w-full flex items-center justify-center py-2"
           >
-            <AnimatePresence mode="wait">
-              {valid && (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: offset >= 0 ? 22 : -22, scale: 0.75 }}
-                  animate={{
-                    opacity: opacityMap[key as keyof typeof opacityMap],
-                    scale: scaleMap[key as keyof typeof scaleMap],
-                    y: 0,
-                    color: isActive
-                      ? "var(--extracted-primary, #ffffff)"
-                      : "rgba(255,255,255,0.8)",
-                  }}
-                  exit={{ opacity: 0, y: offset >= 0 ? -18 : 18, scale: 0.75 }}
-                  transition={{
-                    duration: 0.38,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="w-full text-center leading-snug select-none"
-                  style={{
-                    fontSize: `${fontSize * sizeMap[key as keyof typeof sizeMap]}rem`,
-                    fontWeight: weightMap[key as keyof typeof weightMap],
-                    textShadow: isActive
-                      ? "0 0 40px var(--extracted-primary, rgba(255,255,255,0.3)), 0 4px 24px rgba(0,0,0,0.9)"
-                      : "none",
-                    letterSpacing: isActive ? "-0.01em" : "0",
-                  }}
-                >
-                  {lyrics[idx].text || "♪"}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <motion.div
+              animate={{
+                opacity,
+                scale,
+                y: 0,
+                color: isActive
+                  ? "var(--extracted-primary, #ffffff)"
+                  : "rgba(255,255,255,0.8)",
+              }}
+              transition={{
+                duration: 0.4,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className="w-full text-center leading-snug select-none cursor-default"
+              style={{
+                fontSize: `${fontSize * sizeMultiplier}rem`,
+                fontWeight: weight,
+                textShadow: isActive
+                  ? "0 0 40px var(--extracted-primary, rgba(255,255,255,0.3)), 0 4px 24px rgba(0,0,0,0.9)"
+                  : "none",
+                letterSpacing: isActive ? "-0.01em" : "0",
+                transition: "font-size 0.35s ease, font-weight 0.35s ease",
+              }}
+            >
+              {line.text || "♪"}
+            </motion.div>
           </div>
         );
       })}
+
+      {/* Bottom padding to center last line */}
+      <div style={{ height: "45%" }} />
     </div>
   );
 }

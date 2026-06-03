@@ -41,8 +41,7 @@ function fmt(s: number) {
 
 type RepeatMode = "off" | "track" | "context";
 
-// Lyric offset (in seconds) applied globally for active-index calculation
-const LYRIC_OFFSET = 0.5;
+const LYRIC_OFFSET = 0.8;
 
 function getActiveIndex(lyrics: { time: number }[], currentTime: number) {
   const adj = currentTime + LYRIC_OFFSET;
@@ -97,11 +96,11 @@ export default function LyricStage() {
     fetchAudioFeatures(track.id).then(d => { if (d?.tempo) setBpm(Math.round(d.tempo)); }).catch(()=>{});
   }, [track?.id]);
 
-  // Queue panel
+  // Queue panel - refetch when track changes too
   useEffect(() => {
     if (!showQueue) return;
-    fetchQueue().then(d => { if (d?.queue) setQueue(d.queue.slice(0, 30)); }).catch(()=>{});
-  }, [showQueue]);
+    fetchQueue().then(d => { if (d?.queue) setQueue(d.queue); }).catch(()=>{});
+  }, [showQueue, track?.id]);
 
   // Sync shuffle/repeat
   useEffect(() => {
@@ -184,10 +183,9 @@ export default function LyricStage() {
     );
   }
 
-  // ── Disc component (reused in multiple positions) ──
-  const DiscArt = ({ size, showPause = true }: { size: number; showPause?: boolean }) => (
-    <div className="relative" style={{ width: size, height: size, flexShrink: 0 }}>
-      {/* Vinyl body */}
+  // ── Disc component ──
+  const DiscArt = ({ size, showPause = true, className = "" }: { size: number; showPause?: boolean; className?: string }) => (
+    <div className={`relative ${className}`} style={{ width: size, height: size, flexShrink: 0 }}>
       <div className="absolute inset-0 rounded-full"
         style={{
           background: "radial-gradient(circle at 32% 28%, #3a3a3a 0%, #111 42%, #1e1e1e 70%, #080808 100%)",
@@ -200,17 +198,14 @@ export default function LyricStage() {
           <div key={i} className="absolute rounded-full border border-white/[0.035]" style={{ inset: `${(1-s)*50}%` }} />
         ))}
       </div>
-      {/* Album art */}
       <div className="absolute rounded-full overflow-hidden"
         style={{ inset: "15%", animation:"disc-spin 22s linear infinite", animationPlayState: isPlaying?"running":"paused" }}>
         {albumArt && <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />}
       </div>
-      {/* Center spindle */}
       <div className="absolute rounded-full z-10"
         style={{ inset:"44%", background:"rgba(255,255,255,0.2)", backdropFilter:"blur(4px)",
           boxShadow:"0 0 0 2px rgba(0,0,0,0.5)",
           animation:"disc-spin 22s linear infinite", animationPlayState:isPlaying?"running":"paused" }} />
-      {/* Pause indicator */}
       {showPause && !isPlaying && (
         <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/25 z-20">
           <div className="flex gap-1.5">
@@ -222,10 +217,17 @@ export default function LyricStage() {
     </div>
   );
 
-  const BOTTOM_H = 96;
+  // Should show centered disc in word mode?
+  const showCenteredDisc = lyricsMode === "word" && activeIndex < 0 && !isLoading;
+  // Disc should fade as lyrics approach
+  const lyricsApproaching = lyrics.length > 0 && activeIndex < 0 && currentTime > 0;
+  // Calculate fade: if first lyric is within 3 seconds, start fading
+  const firstLyricTime = lyrics.length > 0 ? lyrics[0].time : Infinity;
+  const timeToFirstLyric = firstLyricTime - (currentTime + LYRIC_OFFSET);
+  const discOpacity = timeToFirstLyric < 3 ? Math.max(0, timeToFirstLyric / 3) : 1;
 
   return (
-    <div className="w-full h-screen bg-black text-white overflow-hidden relative select-none"
+    <div className="w-full h-screen bg-black text-white overflow-hidden relative select-none flex flex-col"
       style={{ fontFamily:"Inter, sans-serif" }}>
 
       {/* Backgrounds */}
@@ -253,12 +255,45 @@ export default function LyricStage() {
             animate={{ opacity: showControls ? 1 : 0.6, scale:1, x:0 }}
             exit={{ opacity:0, scale:0.5 }}
             transition={{ duration:0.4, ease:[0.16,1,0.3,1] }}
-            className="absolute top-4 right-4 z-[25] flex flex-col items-center gap-2"
+            className="absolute top-4 right-4 z-[25] flex items-start gap-3"
           >
-            <DiscArt size={72} showPause={false} />
-            <div className="text-center" style={{ maxWidth:90 }}>
-              <p className="text-white/70 text-xs font-semibold truncate">{trackName}</p>
-              <p className="text-white/35 text-xs truncate">{artistName}</p>
+            {/* Disc with progress ring */}
+            <div className="relative">
+              <svg width="82" height="82" className="absolute -inset-[5px]" style={{ filter: "drop-shadow(0 0 6px var(--extracted-primary, rgba(30,185,84,0.4)))" }}>
+                <circle cx="41" cy="41" r="38" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2.5" />
+                <circle cx="41" cy="41" r="38"
+                  fill="none"
+                  stroke="var(--extracted-primary, #1DB954)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 38}`}
+                  strokeDashoffset={`${2 * Math.PI * 38 * (1 - progress)}`}
+                  transform="rotate(-90 41 41)"
+                  style={{ transition: "stroke-dashoffset 0.3s linear" }}
+                />
+              </svg>
+              <DiscArt size={72} showPause={false} />
+            </div>
+            <div className="flex flex-col gap-1 pt-1" style={{ maxWidth:120 }}>
+              <p className="text-white/80 text-xs font-semibold truncate">{trackName}</p>
+              <p className="text-white/40 text-xs truncate">{artistName}</p>
+              <p className="text-white/25 text-xs tabular-nums">{fmt(currentTime)} / {fmt(durationMs/1000)}</p>
+              {/* Mini controls */}
+              <div className="flex items-center gap-1 mt-1">
+                <button onClick={prev} className="w-6 h-6 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+                </button>
+                <button onClick={play} className="w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                  style={{ background:"var(--extracted-primary,#1DB954)", color:"#000" }}>
+                  {isPlaying
+                    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    : <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  }
+                </button>
+                <button onClick={next} className="w-6 h-6 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/></svg>
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -266,12 +301,12 @@ export default function LyricStage() {
 
       {/* ── Word mode: Centered disc when no lyrics yet ── */}
       <AnimatePresence>
-        {lyricsMode === "word" && activeIndex < 0 && !isLoading && (
+        {showCenteredDisc && (
           <motion.div
             key="word-disc-center"
             initial={{ opacity:0, scale:0.8 }}
-            animate={{ opacity:1, scale:1 }}
-            exit={{ opacity:0, scale:0.85 }}
+            animate={{ opacity: discOpacity, scale:1 }}
+            exit={{ opacity:0, scale:0.85, transition: { duration: 0.8 } }}
             transition={{ duration:0.6, ease:[0.16,1,0.3,1] }}
             className="absolute inset-0 z-[15] flex flex-col items-center justify-center gap-6"
           >
@@ -291,10 +326,8 @@ export default function LyricStage() {
         )}
       </AnimatePresence>
 
-      {/* ── Main layout ── */}
-      <div className="absolute inset-x-0 top-0 z-[10] flex"
-        style={{ bottom: `${BOTTOM_H}px` }}>
-
+      {/* ── Main layout — flex-1 to fill remaining space ── */}
+      <div className="flex-1 min-h-0 relative z-[10] flex">
         {/* Left panel: disc + info — hidden in stage mode, hidden in word mode when lyrics playing */}
         <AnimatePresence>
           {!stageMode && !(lyricsMode === "word" && activeIndex >= 0) && (
@@ -342,23 +375,22 @@ export default function LyricStage() {
       {/* Queue panel */}
       <QueuePanel isOpen={showQueue} onClose={() => setShowQueue(false)} queue={queue} currentTrack={track} />
 
-      {/* ── Bottom bar ── */}
+      {/* ── Bottom bar — fixed height, always at bottom ── */}
       <AnimatePresence>
         {(!stageMode || showControls) && (
           <motion.div
             key="bottom"
             initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
             transition={{ duration:0.25 }}
-            className="absolute bottom-0 inset-x-0 z-[20] flex flex-col"
+            className="relative z-[20] shrink-0"
             style={{
-              height: `${BOTTOM_H}px`,
-              background: "linear-gradient(to top, rgba(0,0,0,0.93) 0%, rgba(0,0,0,0.55) 85%, transparent 100%)",
+              background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 70%, transparent 100%)",
               paddingBottom: "env(safe-area-inset-bottom, 0px)",
             }}
           >
             {/* Progress bar */}
-            <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-              <span className="text-white/30 text-xs tabular-nums w-8 text-right shrink-0">{fmt(currentTime)}</span>
+            <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+              <span className="text-white/30 text-xs tabular-nums w-9 text-right shrink-0">{fmt(currentTime)}</span>
               <div className="flex-1 h-[3px] rounded-full cursor-pointer overflow-hidden"
                 style={{ background:"rgba(255,255,255,0.1)" }}>
                 <motion.div className="h-full rounded-full"
@@ -366,11 +398,11 @@ export default function LyricStage() {
                   animate={{ width:`${progress*100}%` }}
                   transition={{ duration:0.25, ease:"linear" }} />
               </div>
-              <span className="text-white/30 text-xs tabular-nums w-8 shrink-0">{fmt(durationMs/1000)}</span>
+              <span className="text-white/30 text-xs tabular-nums w-9 shrink-0">{fmt(durationMs/1000)}</span>
             </div>
 
             {/* Controls row */}
-            <div className="flex items-center px-2 gap-1 flex-1 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
+            <div className="flex items-center px-3 pb-2 pt-1 gap-1">
 
               {/* Playback: shuffle prev play next repeat */}
               <div className="flex items-center gap-0.5 shrink-0">
@@ -392,7 +424,7 @@ export default function LyricStage() {
                 </button>
 
                 <Btn onClick={next} title="Next">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zm7.5-6h2v12h-2z"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/></svg>
                 </Btn>
 
                 <Btn active={repeat !== "off"} onClick={doRepeat} title={`Repeat: ${repeat}`}>
@@ -402,7 +434,7 @@ export default function LyricStage() {
 
               {/* Beat wave center */}
               {waveOn && (
-                <div className="flex-1 min-w-0 self-stretch flex items-end overflow-hidden px-1" style={{ maxWidth:160 }}>
+                <div className="flex-1 min-w-0 self-stretch flex items-end overflow-hidden px-1" style={{ maxWidth:180, height: 36 }}>
                   <BeatWave beat={beat} bpm={bpm} isPlaying={isPlaying} />
                 </div>
               )}
@@ -410,7 +442,7 @@ export default function LyricStage() {
               <div className="flex-1 min-w-0" />
 
               {/* Right: effects + view toggles */}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                 <SmallBtn active={flashOn} onClick={() => setFlashOn(f=>!f)} color="#ffd700" title="Beat Flash">⚡</SmallBtn>
                 <SmallBtn active={waveOn}  onClick={() => setWaveOn(w=>!w)}  color="var(--extracted-primary,#1DB954)" title="Wave">〜</SmallBtn>
                 <SmallBtn active={lyricsMode==="word"} onClick={() => setLyricsMode(m => m==="line"?"word":"line")} color="#c879ff" title="Word mode">字</SmallBtn>
@@ -418,7 +450,7 @@ export default function LyricStage() {
                 {/* Visualizer cycle */}
                 <SmallBtn active={visType>0} onClick={() => setVisType(v=>(v+1)%VISUALIZER_COUNT)} color="#60a5fa"
                   title={VisualizerNames[visType]}>
-                  {["♫","◎","▌▐","✦","≋","⬡","⚡","⊙","✶","✺"][visType] || "♫"}
+                  {["♫","◎","▌▐","✦","≋","⬡","⚡","⊙","✶","✺","◈","⬢","✧","⌘","❋","◉","⟡","⊛","⬟"][visType] || "♫"}
                 </SmallBtn>
 
                 {/* Stage */}
@@ -461,7 +493,7 @@ export default function LyricStage() {
             initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:8 }}
             className="absolute z-[25] px-3 py-2 rounded-2xl flex flex-wrap gap-1.5"
             style={{
-              bottom: `${BOTTOM_H+8}px`, right:12,
+              bottom: 90, right:12,
               background:"rgba(10,10,16,0.97)", backdropFilter:"blur(24px)",
               border:"1px solid rgba(255,255,255,0.1)", maxWidth:340,
             }}

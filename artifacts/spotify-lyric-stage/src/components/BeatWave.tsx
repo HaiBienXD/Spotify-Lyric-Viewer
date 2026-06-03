@@ -11,6 +11,7 @@ export default function BeatWave({ beat, bpm, isPlaying }: BeatWaveProps) {
   const beatTimeRef = useRef(performance.now());
   const tRef = useRef(0);
   const animRef = useRef(0);
+  const barsRef = useRef<number[]>([]);
 
   useEffect(() => {
     beatTimeRef.current = performance.now();
@@ -29,6 +30,11 @@ export default function BeatWave({ beat, bpm, isPlaying }: BeatWaveProps) {
     setSize();
     window.addEventListener("resize", setSize);
 
+    const numBars = 24;
+    if (barsRef.current.length !== numBars) {
+      barsRef.current = Array(numBars).fill(0);
+    }
+
     const render = () => {
       const W = canvas.offsetWidth;
       const H = canvas.offsetHeight;
@@ -41,37 +47,68 @@ export default function BeatWave({ beat, bpm, isPlaying }: BeatWaveProps) {
       const beatInterval = bpm > 0 ? 60000 / bpm : 500;
       const elapsed = performance.now() - beatTimeRef.current;
       const phase = Math.min(elapsed / beatInterval, 1);
-      // Spike on beat then smooth decay
-      const envelope = isPlaying ? (phase < 0.08 ? phase / 0.08 : Math.pow(1 - (phase - 0.08) / 0.92, 1.6)) : 0.08;
-      const amp = 0.08 + 0.92 * envelope;
+      const envelope = isPlaying
+        ? (phase < 0.06 ? phase / 0.06 : Math.pow(1 - (phase - 0.06) / 0.94, 2.0))
+        : 0.05;
 
-      // Draw 3 layered wave bands
-      const waves = [
-        { freq: 1.8, phaseOffset: 0,       alpha: 0.55, yScale: 0.9 },
-        { freq: 2.6, phaseOffset: Math.PI, alpha: 0.35, yScale: 0.7 },
-        { freq: 3.4, phaseOffset: 1.2,     alpha: 0.20, yScale: 0.5 },
-      ];
+      const barWidth = W / numBars;
+      const gap = Math.max(1, barWidth * 0.18);
+      const bars = barsRef.current;
 
-      waves.forEach(({ freq, phaseOffset, alpha, yScale }) => {
-        const gradient = ctx.createLinearGradient(0, 0, 0, H);
-        gradient.addColorStop(0, `${color}${Math.round(alpha * 255).toString(16).padStart(2,"0")}`);
-        gradient.addColorStop(1, `${color}00`);
+      for (let i = 0; i < numBars; i++) {
+        // Multi-frequency target
+        const t = tRef.current;
+        const freq1 = Math.sin(t * 2.2 + i * 0.45) * 0.4;
+        const freq2 = Math.cos(t * 1.3 + i * 0.28) * 0.3;
+        const freq3 = Math.sin(t * 3.8 + i * 0.62) * 0.2;
+        const centerBoost = 1 - Math.abs(i - numBars / 2) / (numBars / 2) * 0.35;
 
+        const target = isPlaying
+          ? ((freq1 + freq2 + freq3 + 1) / 2) * envelope * centerBoost * 0.85 + 0.05
+          : 0.03 + Math.sin(t * 0.5 + i * 0.3) * 0.02;
+
+        // Smooth interpolation
+        bars[i] += (target - bars[i]) * 0.18;
+
+        const barH = Math.max(2, bars[i] * H * 0.92);
+        const x = i * barWidth + gap / 2;
+        const w = barWidth - gap;
+        const y = H - barH;
+
+        // Gradient per bar
+        const grad = ctx.createLinearGradient(x, H, x, y);
+        grad.addColorStop(0, color);
+        grad.addColorStop(0.5, color + "cc");
+        grad.addColorStop(1, color + "44");
+
+        ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.moveTo(0, H);
+        const radius = Math.min(w / 2, 3);
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, H);
+        ctx.lineTo(x, H);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.fill();
 
-        for (let x = 0; x <= W; x += 2) {
-          const t = (x / W) * Math.PI * 2 * freq + tRef.current * 3 + phaseOffset;
-          const wave = Math.sin(t) * 0.55 + Math.sin(t * 1.7 + 0.5) * 0.3 + Math.sin(t * 0.5) * 0.15;
-          const y = H - (H * amp * yScale * 0.85) * ((wave + 1) / 2 + 0.05);
-          ctx.lineTo(x, y);
+        // Glow effect on taller bars
+        if (bars[i] > 0.4) {
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 8;
+          ctx.fillStyle = color + "33";
+          ctx.fillRect(x, y, w, 2);
+          ctx.shadowBlur = 0;
         }
 
-        ctx.lineTo(W, H);
-        ctx.closePath();
-        ctx.fillStyle = gradient;
-        ctx.fill();
-      });
+        // Reflection
+        const reflGrad = ctx.createLinearGradient(x, H, x, H + barH * 0.3);
+        reflGrad.addColorStop(0, color + "15");
+        reflGrad.addColorStop(1, color + "00");
+        ctx.fillStyle = reflGrad;
+        ctx.fillRect(x, H, w, barH * 0.15);
+      }
 
       animRef.current = requestAnimationFrame(render);
     };
