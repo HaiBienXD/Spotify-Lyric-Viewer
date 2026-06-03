@@ -1,20 +1,24 @@
 import { useState, useEffect } from "react";
 
 function ensureBrightColor(r: number, g: number, b: number): { r: number; g: number; b: number } {
-  // Calculate relative luminance using standard ITU-R BT.601 coefficients
   const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
   
-  if (luminance < 130) {
-    const factor = 130 / Math.max(luminance, 10);
+  // If the color is extremely dark or black, fall back to a beautiful vibrant green (Spotify Green)
+  if (luminance < 40) {
+    return { r: 30, g: 215, b: 96 };
+  }
+  
+  if (luminance < 155) {
+    const factor = 175 / Math.max(luminance, 1);
     let newR = Math.min(255, Math.round(r * factor));
     let newG = Math.min(255, Math.round(g * factor));
     let newB = Math.min(255, Math.round(b * factor));
     
     const newLuminance = 0.299 * newR + 0.587 * newG + 0.114 * newB;
-    if (newLuminance < 100) {
-      newR = Math.round(newR * 0.4 + 29 * 0.6); // Spotify Green: rgb(29, 185, 84)
-      newG = Math.round(newG * 0.4 + 185 * 0.6);
-      newB = Math.round(newB * 0.4 + 84 * 0.6);
+    if (newLuminance < 140) {
+      newR = Math.round(newR * 0.5 + 255 * 0.5);
+      newG = Math.round(newG * 0.5 + 255 * 0.5);
+      newB = Math.round(newB * 0.5 + 255 * 0.5);
     }
     return { r: newR, g: newG, b: newB };
   }

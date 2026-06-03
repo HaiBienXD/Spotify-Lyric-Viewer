@@ -132,7 +132,7 @@ function WordMode({
                 key={`${activeIndex}-${i}`}
                 style={{
                   fontSize: `${fontSize}rem`,
-                  fontWeight: current ? 700 : lit ? 600 : 400,
+                  fontWeight: 600,
                   color: (current || lit)
                     ? "var(--extracted-primary, #ffffff)"
                     : "rgba(255,255,255,0.22)",
@@ -270,7 +270,7 @@ function LineMode({
             <div style={{
               fontSize: `${fontSize}rem`,
               fontFamily: LYRIC_FONT,
-              fontWeight: isActive ? 700 : 400,
+              fontWeight: 600,
               opacity,
               color: isActive ? "var(--extracted-primary, #ffffff)" : "rgba(255,255,255,0.95)",
               textShadow: isActive

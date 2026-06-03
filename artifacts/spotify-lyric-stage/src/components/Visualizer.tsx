@@ -19,7 +19,8 @@ export default function Visualizer({ type }: VisualizerProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || type === 0) return;
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     let W = canvas.width = window.innerWidth;
     let H = canvas.height = window.innerHeight;

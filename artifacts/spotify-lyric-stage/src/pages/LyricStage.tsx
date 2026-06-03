@@ -239,8 +239,8 @@ export default function LyricStage() {
         {rArt && <div className="absolute inset-0 scale-110" style={{ filter:"blur(80px) brightness(0.3)" }}><img src={rArt} className="w-full h-full object-cover" alt="" /></div>}
         <div className="z-10 flex flex-col items-center gap-6">
           {rArt && (
-            <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl ring-4 ring-white/10 animate-vinyl-spin"
-              style={{ animationDuration: "20s" }}>
+            <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl ring-4 ring-white/10"
+              style={{ animation: "disc-spin 20s linear infinite" }}>
               <img src={rArt} className="w-full h-full object-cover" alt="" />
             </div>
           )}
@@ -254,10 +254,11 @@ export default function LyricStage() {
   const DiscArt = ({ size, showPause = true }: { size: number; showPause?: boolean }) => (
     <div className="relative" style={{ width: size, height: size, flexShrink: 0 }}>
       {/* Vinyl body */}
-      <div className="absolute inset-0 rounded-full animate-vinyl-spin"
+      <div className="absolute inset-0 rounded-full"
         style={{
           background: "radial-gradient(circle at 32% 28%, #3a3a3a 0%, #111 42%, #1e1e1e 70%, #080808 100%)",
           boxShadow: `0 0 0 2px rgba(255,255,255,0.05), 0 ${size*0.1}px ${size*0.3}px rgba(0,0,0,0.9), 0 0 ${size*0.25}px var(--extracted-primary, rgba(80,80,200,0.15))`,
+          animation: "disc-spin 22s linear infinite",
           animationPlayState: isPlaying ? "running" : "paused",
         }}
       >
@@ -266,15 +267,22 @@ export default function LyricStage() {
         ))}
       </div>
       {/* Album art */}
-      <div className="absolute rounded-full overflow-hidden animate-vinyl-spin"
-        style={{ inset: "15%", animationPlayState: isPlaying ? "running" : "paused" }}>
+      <div className="absolute rounded-full overflow-hidden"
+        style={{
+          inset: "15%",
+          animation: "disc-spin 22s linear infinite",
+          animationPlayState: isPlaying ? "running" : "paused",
+        }}>
         {albumArt && <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />}
       </div>
       {/* Center spindle */}
-      <div className="absolute rounded-full z-10 animate-vinyl-spin"
-        style={{ inset:"44%", background:"rgba(255,255,255,0.2)", backdropFilter:"blur(4px)",
+      <div className="absolute rounded-full z-10"
+        style={{
+          inset:"44%", background:"rgba(255,255,255,0.2)", backdropFilter:"blur(4px)",
           boxShadow:"0 0 0 2px rgba(0,0,0,0.5)",
-          animationPlayState: isPlaying ? "running" : "paused" }} />
+          animation: "disc-spin 22s linear infinite",
+          animationPlayState: isPlaying ? "running" : "paused",
+        }} />
       {/* Pause indicator */}
       {showPause && !isPlaying && (
         <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/25 z-20">
@@ -309,25 +317,7 @@ export default function LyricStage() {
       {/* Beat flash */}
       {flashOn && <BeatFlash beat={beat} />}
 
-      {/* ── Stage mode PiP (top-right corner) ── */}
-      <AnimatePresence>
-        {stageMode && (
-          <motion.div
-            key="stage-pip"
-            initial={{ opacity:0, scale:0.5, x:20 }}
-            animate={{ opacity: showControls ? 1 : 0.6, scale:1, x:0 }}
-            exit={{ opacity:0, scale:0.5 }}
-            transition={{ duration:0.4, ease:[0.16,1,0.3,1] }}
-            className="absolute top-4 right-4 z-[25] flex flex-col items-center gap-2"
-          >
-            <DiscArt size={72} showPause={false} />
-            <div className="text-center" style={{ maxWidth:90 }}>
-              <p className="text-white/70 text-xs font-semibold truncate">{trackName}</p>
-              <p className="text-white/35 text-xs truncate">{artistName}</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       {/* ── Word mode: Centered disc when no lyrics yet ── */}
       <AnimatePresence>
@@ -358,11 +348,16 @@ export default function LyricStage() {
 
       {/* ── Main layout ── */}
       <div className="absolute inset-x-0 top-0 z-[10] flex"
-        style={{ bottom: `${BOTTOM_H}px` }}>
+        style={{
+          bottom: `${BOTTOM_H}px`,
+          flexDirection: isLandscape ? "row" : "column",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
 
-        {/* Left panel: disc + info — hidden in stage mode, hidden in word mode when lyrics playing */}
+        {/* Left panel: disc + info — hidden in word mode when lyrics playing */}
         <AnimatePresence>
-          {!stageMode && !(lyricsMode === "word" && activeIndex >= 0) && (
+          {!(lyricsMode === "word" && activeIndex >= 0) && (
             <motion.div
               key="left"
               initial={{ opacity:0, x:-40 }}
