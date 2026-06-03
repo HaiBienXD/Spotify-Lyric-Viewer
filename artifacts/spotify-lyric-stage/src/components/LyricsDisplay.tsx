@@ -10,33 +10,39 @@ interface LyricsDisplayProps {
   error: string | null;
 }
 
-export default function LyricsDisplay({ lyrics, currentTime, fontSize, isLoading, error }: LyricsDisplayProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const activeLineRef = useRef<HTMLDivElement>(null);
+export default function LyricsDisplay({
+  lyrics, currentTime, fontSize, isLoading, error,
+}: LyricsDisplayProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLDivElement>(null);
 
   let activeIndex = -1;
   for (let i = lyrics.length - 1; i >= 0; i--) {
-    if (currentTime >= lyrics[i].time) {
-      activeIndex = i;
-      break;
-    }
+    if (currentTime >= lyrics[i].time) { activeIndex = i; break; }
   }
 
+  // Scroll active line to center using getBoundingClientRect (works regardless of DOM hierarchy)
   useEffect(() => {
-    const container = containerRef.current;
-    const line = activeLineRef.current;
-    if (!container || !line) return;
-    const containerHeight = container.clientHeight;
-    const targetTop = line.offsetTop - containerHeight / 2 + line.offsetHeight / 2;
-    container.scrollTo({ top: targetTop, behavior: "smooth" });
+    const scroller = scrollRef.current;
+    const activeLine = activeRef.current;
+    if (!scroller || !activeLine) return;
+
+    const sRect = scroller.getBoundingClientRect();
+    const lRect = activeLine.getBoundingClientRect();
+
+    // Distance from line center to scroller center
+    const lineCenterInScroller = lRect.top - sRect.top + lRect.height / 2;
+    const delta = lineCenterInScroller - sRect.height / 2;
+
+    scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: "smooth" });
   }, [activeIndex]);
 
   if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-          <span className="text-white/40 text-sm tracking-widest uppercase">Loading lyrics</span>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/70 animate-spin" />
+          <span className="text-white/30 text-xs tracking-widest uppercase">Loading</span>
         </div>
       </div>
     );
@@ -44,50 +50,63 @@ export default function LyricsDisplay({ lyrics, currentTime, fontSize, isLoading
 
   if (error || lyrics.length === 0) {
     return (
-      <div className="w-full h-full flex items-center justify-center text-white/30 text-xl font-serif tracking-wide">
-        No lyrics found
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-white/25 text-base tracking-wide">No lyrics found</p>
       </div>
     );
   }
 
-  return (
-    <div
-      ref={containerRef}
-      className="w-full h-full overflow-y-auto px-6 md:px-16"
-      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-    >
-      <div className="py-[50vh] flex flex-col items-center gap-1">
-        {lyrics.map((line, index) => {
-          const isActive = index === activeIndex;
-          const isPast = index < activeIndex;
+  const getStyle = (dist: number): { opacity: number; scale: number; color: string } => {
+    if (dist === 0) return { opacity: 1, scale: 1.05, color: "var(--extracted-primary, #ffffff)" };
+    if (dist === 1) return { opacity: 0.65, scale: 1.0, color: "rgba(255,255,255,0.85)" };
+    if (dist === 2) return { opacity: 0.38, scale: 1.0, color: "rgba(255,255,255,0.7)" };
+    if (dist === 3) return { opacity: 0.22, scale: 1.0, color: "rgba(255,255,255,0.6)" };
+    return { opacity: 0.12, scale: 1.0, color: "rgba(255,255,255,0.5)" };
+  };
 
-          return (
-            <motion.div
-              key={index}
-              ref={isActive ? activeLineRef : null}
-              initial={false}
-              animate={{
-                opacity: isActive ? 1 : isPast ? 0.28 : 0.45,
-                scale: isActive ? 1.04 : 1,
-                y: 0,
-              }}
-              transition={{ duration: 0.35, ease: "easeOut" }}
-              className="w-full max-w-3xl text-center py-2.5 leading-snug cursor-default select-none"
-              style={{
-                fontSize: `${fontSize}rem`,
-                fontWeight: 700,
-                fontFamily: "Inter, sans-serif",
-                color: isActive ? "#ffffff" : "rgba(255,255,255,0.7)",
-                textShadow: isActive
-                  ? "0 0 40px rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.8)"
-                  : "none",
-                filter: isActive ? "none" : "blur(0.3px)",
-              }}
-            >
-              {line.text}
-            </motion.div>
-          );
-        })}
+  return (
+    <div className="relative w-full h-full">
+      {/* Fade mask top & bottom */}
+      <div className="absolute inset-x-0 top-0 h-24 z-10 pointer-events-none"
+        style={{ background: "linear-gradient(to bottom, var(--bg-color,#0a0a0a) 0%, transparent 100%)" }} />
+      <div className="absolute inset-x-0 bottom-0 h-32 z-10 pointer-events-none"
+        style={{ background: "linear-gradient(to top, var(--bg-color,#0a0a0a) 0%, transparent 100%)" }} />
+
+      {/* Scrollable lyrics */}
+      <div
+        ref={scrollRef}
+        className="w-full h-full overflow-y-auto"
+        style={{ scrollbarWidth: "none" }}
+      >
+        <div className="flex flex-col items-center" style={{ paddingTop: "50%", paddingBottom: "50%" }}>
+          {lyrics.map((line, i) => {
+            const dist = Math.abs(i - activeIndex);
+            const isActive = i === activeIndex;
+            const { opacity, scale, color } = getStyle(dist);
+
+            return (
+              <motion.div
+                key={i}
+                ref={isActive ? activeRef : null}
+                initial={false}
+                animate={{ opacity, scale, color }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="w-full text-center px-6 md:px-12 leading-snug cursor-default select-none"
+                style={{
+                  fontSize: `${fontSize * (isActive ? 1 : 0.95)}rem`,
+                  fontWeight: isActive ? 700 : 500,
+                  fontFamily: "Inter, sans-serif",
+                  paddingTop: isActive ? "0.6rem" : "0.4rem",
+                  paddingBottom: isActive ? "0.6rem" : "0.4rem",
+                  textShadow: isActive ? "0 0 30px var(--extracted-primary, rgba(255,255,255,0.3)), 0 2px 12px rgba(0,0,0,0.9)" : "none",
+                  letterSpacing: isActive ? "-0.01em" : "0",
+                }}
+              >
+                {line.text || "♪"}
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

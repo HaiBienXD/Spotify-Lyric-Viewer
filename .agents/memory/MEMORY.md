@@ -1,0 +1,2 @@
+- [Lyric scroll fix](lyric-scroll.md) — offsetTop is unreliable in static DOM trees; use getBoundingClientRect to scroll active lyric to center.
+- [Spotify redirect URI](spotify-redirect-uri.md) — backend /api/spotify/callback passthrough solves env mismatch; never bake redirect URI at build time.
