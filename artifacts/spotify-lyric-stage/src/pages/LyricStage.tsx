@@ -186,8 +186,8 @@ function LyricStageInner() {
                 const tY = dCy - (discSize / 2) * 0.74 * Math.cos(ta);
                 const vx = tX - pX, vy = tY - pY;
                 const armLen = Math.sqrt(vx * vx + vy * vy);
-                const playAng = Math.atan2(vx, vy) * 180 / Math.PI;
-                const pauseAng = playAng - 26;
+                const playAng = -Math.atan2(vx, vy) * 180 / Math.PI;
+                const pauseAng = playAng - 52;
                 const ang = isPlaying ? playAng : pauseAng;
                 const tipX = pX, tipY = pY + armLen;
                 const cW = pX + 18;

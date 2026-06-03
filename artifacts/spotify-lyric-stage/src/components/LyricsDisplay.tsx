@@ -4,7 +4,7 @@ import { LyricLine } from "../lib/lrcParser";
 export type LyricsMode = "line" | "word";
 
 const LYRIC_OFFSET = 0.8;
-const LYRIC_FONT = "'DM Serif Display', 'Playfair Display', Georgia, serif";
+const LYRIC_FONT = "'Be Vietnam Pro', 'Noto Sans', sans-serif";
 
 interface LyricsDisplayProps {
   lyrics: LyricLine[];
