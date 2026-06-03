@@ -1,6 +1,6 @@
 import { generateRandomString, generateCodeChallenge } from "./pkce";
 
-const SCOPES = "user-read-currently-playing user-read-playback-state user-read-recently-played user-modify-playback-state user-read-playback-queue";
+const SCOPES = "user-read-currently-playing user-read-playback-state user-read-recently-played user-modify-playback-state";
 const DEFAULT_CLIENT_ID = "0b0dd397bce54d04af1df5bcada7904e";
 
 function getClientId(): string {
