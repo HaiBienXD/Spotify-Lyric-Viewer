@@ -60,10 +60,10 @@ export default function LyricStage() {
   const progressMs = playbackState?.progress_ms ?? 0;
   const durationMs = track?.duration_ms ?? 1;
 
-  const artistName = track?.artists[0]?.name ?? "";
+  const artistName = track?.artists?.[0]?.name ?? "";
   const trackName  = track?.name ?? "";
-  const albumName  = track?.album.name ?? "";
-  const albumArt   = track?.album.images[0]?.url;
+  const albumName  = track?.album?.name ?? "";
+  const albumArt   = track?.album?.images?.[0]?.url;
 
   const { lyrics, isLoading, error } = useLyrics(artistName, trackName, albumName);
   const currentTime = usePlaybackSync(isPlaying, progressMs, durationMs);

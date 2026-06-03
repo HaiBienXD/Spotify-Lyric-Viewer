@@ -237,17 +237,14 @@ function LineMode({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeRef    = useRef<HTMLDivElement>(null);
-  const prevRef      = useRef(-1);
-
-  if (prevRef.current !== activeIndex) {
-    prevRef.current = activeIndex;
+  useEffect(() => {
     if (activeRef.current && containerRef.current) {
       const c  = containerRef.current;
       const el = activeRef.current;
       const target = el.offsetTop - c.clientHeight / 2 + el.offsetHeight / 2;
       c.scrollTo({ top: target, behavior: "smooth" });
     }
-  }
+  }, [activeIndex]);
 
   return (
     <div
