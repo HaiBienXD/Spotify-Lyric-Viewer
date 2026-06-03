@@ -297,13 +297,13 @@ export default function Visualizer({ type }: VisualizerProps) {
       // ── 10: Plasma Flow ──
       else if (type === 10) {
         const { r, g, b } = hexToRgb(color);
-        const step = 8;
+        const step = 32;
         for (let x = 0; x < W; x += step) {
           for (let y = 0; y < H; y += step) {
-            const v1 = Math.sin(x * 0.012 + t);
-            const v2 = Math.sin(y * 0.015 + t * 0.7);
-            const v3 = Math.sin((x * 0.008 + y * 0.008) + t * 0.5);
-            const v4 = Math.sin(Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) * 0.012 - t * 1.2);
+            const v1 = Math.sin(x * 0.003 + t);
+            const v2 = Math.sin(y * 0.004 + t * 0.7);
+            const v3 = Math.sin((x * 0.002 + y * 0.002) + t * 0.5);
+            const v4 = Math.sin(Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) * 0.003 - t * 1.2);
             const v = (v1 + v2 + v3 + v4) / 4;
             const intensity = (v + 1) / 2;
             ctx.globalAlpha = intensity * 0.25;
