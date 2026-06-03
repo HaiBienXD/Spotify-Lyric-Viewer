@@ -332,7 +332,7 @@ export default function LyricStage() {
       )}
 
       {/* Visualizer */}
-      {visType > 0 && <div className="absolute inset-0 z-[3] pointer-events-none"><Visualizer type={visType} /></div>}
+      {visType > 0 && <div className="absolute inset-0 z-[2] pointer-events-none" style={{ opacity: 0.35 }}><Visualizer type={visType} /></div>}
 
       {/* Beat flash */}
       {flashOn && <BeatFlash beat={beat} />}
@@ -455,7 +455,7 @@ export default function LyricStage() {
         </AnimatePresence>
 
         {/* Lyrics panel */}
-        <div className="flex-1 min-w-0 relative">
+        <div className="flex-1 min-w-0 relative h-full w-full">
           <LyricsDisplay
             lyrics={lyrics}
             currentTime={currentTime}
