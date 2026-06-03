@@ -8,83 +8,80 @@ interface BeatWaveProps {
 
 export default function BeatWave({ beat, bpm, isPlaying }: BeatWaveProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const lastBeatRef = useRef(performance.now());
-  const animRef = useRef<number>(0);
+  const beatTimeRef = useRef(performance.now());
+  const tRef = useRef(0);
+  const animRef = useRef(0);
 
   useEffect(() => {
-    lastBeatRef.current = performance.now();
+    beatTimeRef.current = performance.now();
   }, [beat]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
-    let timeOffset = 0;
 
-    const resize = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    const setSize = () => {
+      canvas.width = canvas.offsetWidth * devicePixelRatio;
+      canvas.height = canvas.offsetHeight * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
     };
-    resize();
-    window.addEventListener("resize", resize);
+    setSize();
+    window.addEventListener("resize", setSize);
 
     const render = () => {
       const W = canvas.offsetWidth;
       const H = canvas.offsetHeight;
       ctx.clearRect(0, 0, W, H);
-      timeOffset += 0.04;
+      tRef.current += 0.025;
 
       const style = getComputedStyle(document.documentElement);
       const color = style.getPropertyValue("--extracted-primary").trim() || "#1DB954";
 
       const beatInterval = bpm > 0 ? 60000 / bpm : 500;
-      const timeSince = performance.now() - lastBeatRef.current;
-      // Amplitude: quick spike then smooth decay
-      const t = Math.min(timeSince / beatInterval, 1);
-      const rawDecay = t < 0.1 ? t / 0.1 : Math.pow(1 - (t - 0.1) / 0.9, 1.8);
-      const amplitude = isPlaying ? (0.25 + 0.75 * rawDecay) : 0.1;
+      const elapsed = performance.now() - beatTimeRef.current;
+      const phase = Math.min(elapsed / beatInterval, 1);
+      // Spike on beat then smooth decay
+      const envelope = isPlaying ? (phase < 0.08 ? phase / 0.08 : Math.pow(1 - (phase - 0.08) / 0.92, 1.6)) : 0.08;
+      const amp = 0.08 + 0.92 * envelope;
 
-      const bars = 80;
-      const barW = W / bars;
-      const maxH = H * 0.85;
+      // Draw 3 layered wave bands
+      const waves = [
+        { freq: 1.8, phaseOffset: 0,       alpha: 0.55, yScale: 0.9 },
+        { freq: 2.6, phaseOffset: Math.PI, alpha: 0.35, yScale: 0.7 },
+        { freq: 3.4, phaseOffset: 1.2,     alpha: 0.20, yScale: 0.5 },
+      ];
 
-      for (let i = 0; i < bars; i++) {
-        const phase = (i / bars) * Math.PI * 4 + timeOffset * 2.5;
-        const wave1 = Math.sin(phase) * 0.5 + 0.5;
-        const wave2 = Math.sin(phase * 0.7 + timeOffset) * 0.3 + 0.3;
-        const combined = (wave1 * 0.65 + wave2 * 0.35);
-        const barH = maxH * amplitude * (0.15 + 0.85 * combined);
-
-        const alpha = 0.4 + 0.6 * amplitude;
-        ctx.fillStyle = color;
-        ctx.globalAlpha = alpha * (0.5 + 0.5 * combined);
-
-        const x = i * barW + barW * 0.15;
-        const w = barW * 0.7;
-        const y = H - barH;
+      waves.forEach(({ freq, phaseOffset, alpha, yScale }) => {
+        const gradient = ctx.createLinearGradient(0, 0, 0, H);
+        gradient.addColorStop(0, `${color}${Math.round(alpha * 255).toString(16).padStart(2,"0")}`);
+        gradient.addColorStop(1, `${color}00`);
 
         ctx.beginPath();
-        ctx.roundRect(x, y, w, barH, w / 2);
-        ctx.fill();
-      }
+        ctx.moveTo(0, H);
 
-      ctx.globalAlpha = 1;
+        for (let x = 0; x <= W; x += 2) {
+          const t = (x / W) * Math.PI * 2 * freq + tRef.current * 3 + phaseOffset;
+          const wave = Math.sin(t) * 0.55 + Math.sin(t * 1.7 + 0.5) * 0.3 + Math.sin(t * 0.5) * 0.15;
+          const y = H - (H * amp * yScale * 0.85) * ((wave + 1) / 2 + 0.05);
+          ctx.lineTo(x, y);
+        }
+
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      });
+
       animRef.current = requestAnimationFrame(render);
     };
 
     render();
     return () => {
       cancelAnimationFrame(animRef.current);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", setSize);
     };
   }, [bpm, isPlaying]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full"
-      style={{ display: "block" }}
-    />
-  );
+  return <canvas ref={canvasRef} className="w-full h-full block" />;
 }
