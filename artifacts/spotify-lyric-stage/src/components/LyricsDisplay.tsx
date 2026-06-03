@@ -137,13 +137,9 @@ function WordMode({
                     ? "var(--extracted-primary, #ffffff)"
                     : "rgba(255,255,255,0.22)",
                   textShadow: current
-                    ? pulse
-                      ? `0 0 45px var(--extracted-primary, rgba(255,255,255,0.9)),
-                         0 0 20px var(--extracted-primary, rgba(255,255,255,0.8)),
-                         0 2px 10px rgba(0,0,0,0.8)`
-                      : `0 0 22px var(--extracted-primary, rgba(255,255,255,0.8)),
-                         0 0 60px var(--extracted-primary, rgba(255,255,255,0.18)),
-                         0 2px 10px rgba(0,0,0,0.8)`
+                    ? `0 0 22px var(--extracted-primary, rgba(255,255,255,0.8)),
+                       0 0 45px var(--extracted-primary, rgba(255,255,255,0.18)),
+                       0 2px 10px rgba(0,0,0,0.8)`
                     : lit
                     ? "0 1px 6px rgba(0,0,0,0.6)"
                     : "none",
@@ -278,13 +274,9 @@ function LineMode({
               opacity,
               color: isActive ? "var(--extracted-primary, #ffffff)" : "rgba(255,255,255,0.95)",
               textShadow: isActive
-                ? pulse
-                  ? `0 0 45px var(--extracted-primary, rgba(255,255,255,0.85)),
-                     0 0 20px var(--extracted-primary, rgba(255,255,255,0.75)),
-                     0 2px 12px rgba(0,0,0,0.9)`
-                  : `0 0 20px var(--extracted-primary, rgba(255,255,255,0.5)),
-                     0 0 50px var(--extracted-primary, rgba(255,255,255,0.12)),
-                     0 2px 12px rgba(0,0,0,0.9)`
+                ? `0 0 20px var(--extracted-primary, rgba(255,255,255,0.5)),
+                   0 0 50px var(--extracted-primary, rgba(255,255,255,0.12)),
+                   0 2px 12px rgba(0,0,0,0.9)`
                 : "none",
               transition: "opacity 0.5s ease, font-weight 0.4s ease, text-shadow 0.15s ease",
               lineHeight: 1.45,

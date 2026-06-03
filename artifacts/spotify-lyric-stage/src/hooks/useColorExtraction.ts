@@ -1,9 +1,30 @@
 import { useState, useEffect } from "react";
 
+function ensureBrightColor(r: number, g: number, b: number): { r: number; g: number; b: number } {
+  // Calculate relative luminance using standard ITU-R BT.601 coefficients
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  
+  if (luminance < 130) {
+    const factor = 130 / Math.max(luminance, 10);
+    let newR = Math.min(255, Math.round(r * factor));
+    let newG = Math.min(255, Math.round(g * factor));
+    let newB = Math.min(255, Math.round(b * factor));
+    
+    const newLuminance = 0.299 * newR + 0.587 * newG + 0.114 * newB;
+    if (newLuminance < 100) {
+      newR = Math.round(newR * 0.4 + 29 * 0.6); // Spotify Green: rgb(29, 185, 84)
+      newG = Math.round(newG * 0.4 + 185 * 0.6);
+      newB = Math.round(newB * 0.4 + 84 * 0.6);
+    }
+    return { r: newR, g: newG, b: newB };
+  }
+  return { r, g, b };
+}
+
 export function useColorExtraction(imageUrl: string | undefined) {
   const [colors, setColors] = useState<{ primary: string; secondary: string }>({
-    primary: "hsl(240, 10%, 4%)", // default dark
-    secondary: "hsl(240, 10%, 10%)"
+    primary: "rgb(29, 185, 84)", // default spotify green for high visibility
+    secondary: "rgb(25, 20, 20)"
   });
 
   useEffect(() => {
@@ -20,34 +41,35 @@ export function useColorExtraction(imageUrl: string | undefined) {
       canvas.height = img.height;
       ctx.drawImage(img, 0, 0);
 
-      // Simple extraction: sample a few pixels
       try {
         const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        let r = 0, g = 0, b = 0;
-        let count = 0;
         
         // Sample center pixel
         const centerX = Math.floor(canvas.width / 2);
         const centerY = Math.floor(canvas.height / 2);
         const centerIndex = (centerY * canvas.width + centerX) * 4;
         
-        const r1 = data[centerIndex];
-        const g1 = data[centerIndex + 1];
-        const b1 = data[centerIndex + 2];
+        const rawR1 = data[centerIndex];
+        const rawG1 = data[centerIndex + 1];
+        const rawB1 = data[centerIndex + 2];
 
-        // Sample another pixel
-        const r2 = data[0];
-        const g2 = data[1];
-        const b2 = data[2];
+        // Sample top-left pixel
+        const rawR2 = data[0];
+        const rawG2 = data[1];
+        const rawB2 = data[2];
+
+        // Ensure bright, high-contrast colors
+        const c1 = ensureBrightColor(rawR1, rawG1, rawB1);
+        const c2 = ensureBrightColor(rawR2, rawG2, rawB2);
 
         setColors({
-          primary: `rgb(${r1}, ${g1}, ${b1})`,
-          secondary: `rgb(${r2}, ${g2}, ${b2})`
+          primary: `rgb(${c1.r}, ${c1.g}, ${c1.b})`,
+          secondary: `rgb(${c2.r}, ${c2.g}, ${c2.b})`
         });
         
         // Update CSS variables
-        document.documentElement.style.setProperty('--extracted-primary', `rgb(${r1}, ${g1}, ${b1})`);
-        document.documentElement.style.setProperty('--extracted-secondary', `rgb(${r2}, ${g2}, ${b2})`);
+        document.documentElement.style.setProperty('--extracted-primary', `rgb(${c1.r}, ${c1.g}, ${c1.b})`);
+        document.documentElement.style.setProperty('--extracted-secondary', `rgb(${c2.r}, ${c2.g}, ${c2.b})`);
         
       } catch (e) {
         console.error("Color extraction failed", e);

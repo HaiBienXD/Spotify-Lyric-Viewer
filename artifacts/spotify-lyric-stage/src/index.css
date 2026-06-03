@@ -127,6 +127,10 @@
   to   { transform: rotate(360deg); }
 }
 
+.animate-vinyl-spin {
+  animation: disc-spin 22s linear infinite;
+}
+
 /* ── QQ Music lyric active pulse ── */
 @keyframes lyric-breathe {
   0%, 100% { filter: brightness(1); }
