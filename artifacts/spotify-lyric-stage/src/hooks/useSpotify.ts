@@ -41,6 +41,14 @@ export function useSpotify() {
     let mounted = true;
 
     const fetchState = async () => {
+      if (!getAccessToken()) {
+        if (mounted) {
+          setIsAuthenticated(false);
+          setPlaybackState(null);
+        }
+        return;
+      }
+
       try {
         const { fetchSpotifyApi } = await import("../lib/spotify");
         const res = await fetchSpotifyApi("/me/player/currently-playing");
@@ -58,9 +66,22 @@ export function useSpotify() {
         } else if (res.ok) {
           const data = await res.json();
           if (mounted) setPlaybackState(data);
+        } else if (res.status === 401 || res.status === 403) {
+          const { clearTokens } = await import("../lib/spotify");
+          clearTokens();
+          if (mounted) {
+            setIsAuthenticated(false);
+            setPlaybackState(null);
+          }
         }
       } catch (err) {
         console.error("Error fetching Spotify state", err);
+        if (!getAccessToken()) {
+          if (mounted) {
+            setIsAuthenticated(false);
+            setPlaybackState(null);
+          }
+        }
       }
     };
 

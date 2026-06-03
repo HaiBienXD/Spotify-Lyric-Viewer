@@ -105,7 +105,10 @@ export async function exchangeToken(code: string, state?: string) {
 
 export async function refreshAccessToken() {
   const storedRefreshToken = window.localStorage.getItem("spotify_refresh_token");
-  if (!storedRefreshToken) throw new Error("No refresh token");
+  if (!storedRefreshToken) {
+    clearTokens();
+    throw new Error("No refresh token");
+  }
 
   const clientId = getClientId();
 
@@ -121,7 +124,10 @@ export async function refreshAccessToken() {
     body: params,
   });
 
-  if (!response.ok) throw new Error("Failed to refresh token");
+  if (!response.ok) {
+    clearTokens();
+    throw new Error("Failed to refresh token");
+  }
   const data = await response.json();
   saveTokens(data);
   return data;
