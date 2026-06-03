@@ -126,9 +126,19 @@ export default function LyricStage() {
     else resetTimer();
   }, [stageMode, resetTimer]);
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); setStageMode(true); }
-    else { document.exitFullscreen(); setStageMode(false); }
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        setStageMode(true);
+      } else {
+        await document.exitFullscreen();
+        setStageMode(false);
+      }
+    } catch {
+      // Fullscreen not supported (e.g. iframe) — just toggle stage mode visually
+      setStageMode(s => !s);
+    }
   };
   useEffect(() => {
     const h = () => setStageMode(!!document.fullscreenElement);
@@ -401,25 +411,40 @@ export default function LyricStage() {
               <span className="text-white/30 text-xs tabular-nums w-9 shrink-0">{fmt(durationMs/1000)}</span>
             </div>
 
-            {/* Controls row */}
-            <div className="flex items-center px-3 pb-2 pt-1 gap-1">
+            {/* Controls row — 3 columns: left effects | center playback | right tools */}
+            <div className="grid pb-2 pt-1 px-3" style={{ gridTemplateColumns:"1fr auto 1fr", alignItems:"center", gap:"0 8px" }}>
 
-              {/* Playback: shuffle prev play next repeat */}
-              <div className="flex items-center gap-0.5 shrink-0">
+              {/* LEFT: effects */}
+              <div className="flex items-center gap-1">
+                <SmallBtn active={flashOn} onClick={() => setFlashOn(f=>!f)} color="#ffd700" title="Beat Flash">⚡</SmallBtn>
+                <SmallBtn active={waveOn}  onClick={() => setWaveOn(w=>!w)}  color="var(--extracted-primary,#1DB954)" title="Wave">〜</SmallBtn>
+                <SmallBtn active={lyricsMode==="word"} onClick={() => setLyricsMode(m => m==="line"?"word":"line")} color="#c879ff" title="Word mode">字</SmallBtn>
+                <SmallBtn active={visType>0} onClick={() => setVisType(v=>(v+1)%VISUALIZER_COUNT)} color="#60a5fa"
+                  title={VisualizerNames[visType]}>
+                  {["♫","◎","▌▐","✦","≋","⬡","⚡","⊙","✶","✺","◈","⬢","✧","⌘","❋","◉","⟡","⊛","⬟"][visType] || "♫"}
+                </SmallBtn>
+                {waveOn && (
+                  <div className="self-stretch flex items-end overflow-hidden" style={{ width:60, height:32 }}>
+                    <BeatWave beat={beat} bpm={bpm} isPlaying={isPlaying} />
+                  </div>
+                )}
+              </div>
+
+              {/* CENTER: playback controls */}
+              <div className="flex items-center gap-1">
                 <Btn active={shuffle} onClick={doShuffle} title="Shuffle">⇄</Btn>
 
                 <Btn onClick={prev} title="Previous">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
                 </Btn>
 
-                {/* Play/Pause — bigger */}
                 <button onClick={play}
-                  className="w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
                   style={{ background:"var(--extracted-primary,#1DB954)", color:"#000" }}
                 >
                   {isPlaying
-                    ? <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                    : <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft:2 }}><path d="M8 5v14l11-7z"/></svg>
+                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft:2 }}><path d="M8 5v14l11-7z"/></svg>
                   }
                 </button>
 
@@ -432,31 +457,18 @@ export default function LyricStage() {
                 </Btn>
               </div>
 
-              {/* Beat wave center */}
-              {waveOn && (
-                <div className="flex-1 min-w-0 self-stretch flex items-end overflow-hidden px-1" style={{ maxWidth:180, height: 36 }}>
-                  <BeatWave beat={beat} bpm={bpm} isPlaying={isPlaying} />
-                </div>
-              )}
+              {/* RIGHT: theme, font, queue, stage */}
+              <div className="flex items-center gap-1 justify-end">
+                {/* Font size */}
+                <button onClick={() => setFontSize(Math.max(1.2,fontSize-0.2))}
+                  className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/10 transition-all"
+                  style={{ color:"rgba(255,255,255,0.4)", fontSize:"0.65rem" }}>A</button>
+                <button onClick={() => setFontSize(Math.min(4.5,fontSize+0.2))}
+                  className="w-6 h-6 rounded-full flex items-center justify-center font-bold hover:bg-white/10 transition-all"
+                  style={{ color:"rgba(255,255,255,0.7)", fontSize:"0.95rem" }}>A</button>
 
-              <div className="flex-1 min-w-0" />
-
-              {/* Right: effects + view toggles */}
-              <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                <SmallBtn active={flashOn} onClick={() => setFlashOn(f=>!f)} color="#ffd700" title="Beat Flash">⚡</SmallBtn>
-                <SmallBtn active={waveOn}  onClick={() => setWaveOn(w=>!w)}  color="var(--extracted-primary,#1DB954)" title="Wave">〜</SmallBtn>
-                <SmallBtn active={lyricsMode==="word"} onClick={() => setLyricsMode(m => m==="line"?"word":"line")} color="#c879ff" title="Word mode">字</SmallBtn>
-
-                {/* Visualizer cycle */}
-                <SmallBtn active={visType>0} onClick={() => setVisType(v=>(v+1)%VISUALIZER_COUNT)} color="#60a5fa"
-                  title={VisualizerNames[visType]}>
-                  {["♫","◎","▌▐","✦","≋","⬡","⚡","⊙","✶","✺","◈","⬢","✧","⌘","❋","◉","⟡","⊛","⬟"][visType] || "♫"}
-                </SmallBtn>
-
-                {/* Stage */}
-                <SmallBtn active={stageMode} onClick={toggleFullscreen} color="#ff6060" title="Fullscreen">
-                  {stageMode ? "⊠" : "⛶"}
-                </SmallBtn>
+                {/* Queue */}
+                <SmallBtn active={showQueue} onClick={() => setShowQueue(q=>!q)} color="#fff" title="Queue">≡</SmallBtn>
 
                 {/* Theme */}
                 <button onClick={() => setShowThemes(t=>!t)}
@@ -468,18 +480,10 @@ export default function LyricStage() {
                   {THEME_ICONS[theme]}
                 </button>
 
-                {/* Font */}
-                <div className="flex items-center gap-0.5">
-                  <button onClick={() => setFontSize(Math.max(1.2,fontSize-0.2))}
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-white/10 transition-all"
-                    style={{ color:"rgba(255,255,255,0.4)", fontSize:"0.7rem" }}>A</button>
-                  <button onClick={() => setFontSize(Math.min(4.5,fontSize+0.2))}
-                    className="w-6 h-6 rounded-full flex items-center justify-center font-bold hover:bg-white/10 transition-all"
-                    style={{ color:"rgba(255,255,255,0.7)", fontSize:"1rem" }}>A</button>
-                </div>
-
-                {/* Queue */}
-                <SmallBtn active={showQueue} onClick={() => setShowQueue(q=>!q)} color="#fff" title="Queue">≡</SmallBtn>
+                {/* Stage */}
+                <SmallBtn active={stageMode} onClick={toggleFullscreen} color="#ff6060" title="Cinema mode">
+                  {stageMode ? "⊠" : "⛶"}
+                </SmallBtn>
               </div>
             </div>
           </motion.div>
