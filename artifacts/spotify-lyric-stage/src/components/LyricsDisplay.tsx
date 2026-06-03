@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { LyricLine } from "../lib/lrcParser";
+import { motion, AnimatePresence } from "framer-motion";
 
 export type LyricsMode = "line" | "word";
 
@@ -106,7 +107,7 @@ function WordMode({
     }}>
 
       {/* ── Previous line ── */}
-      <SideRow
+      <AnimatedSideRow
         line={prev}
         fontSize={smSize}
         xsFontSize={xsSize}
@@ -115,69 +116,113 @@ function WordMode({
 
       {/* ── Current line — word-by-word ── */}
       <div style={{
-        display: "flex", flexWrap: "wrap",
-        justifyContent: "center", alignItems: "center",
-        gap: "0.12em 0.42em",
-        maxWidth: "100%",
-        minHeight: `${fontSize * 1.45}rem`,
-        fontFamily: LYRIC_FONT,
-        lineHeight: 1.35,
+        minHeight: `${fontSize * 1.5}rem`,
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
       }}>
-        {words.length > 0 ? (
-          words.map((word, i) => {
-            const lit     = i < wordIdx;
-            const current = i === wordIdx;
-            return (
-              <span
-                key={`${activeIndex}-${i}`}
-                style={{
-                  fontSize: `${fontSize}rem`,
-                  fontWeight: 600,
-                  color: (current || lit)
-                    ? "var(--extracted-primary, #ffffff)"
-                    : "rgba(255,255,255,0.22)",
-                  textShadow: current
-                    ? `0 0 22px var(--extracted-primary, rgba(255,255,255,0.8)),
-                       0 0 45px var(--extracted-primary, rgba(255,255,255,0.18)),
-                       0 2px 10px rgba(0,0,0,0.8)`
-                    : lit
-                    ? "0 1px 6px rgba(0,0,0,0.6)"
-                    : "none",
-                  transition: "color 0.2s ease, text-shadow 0.15s ease",
-                  display: "inline-block",
-                  willChange: "color, text-shadow",
-                }}
-              >
-                {word}
-              </span>
-            );
-          })
-        ) : (
-          <span style={{ color: "rgba(255,255,255,0.14)", fontSize: `${fontSize * 0.6}rem`, fontFamily: LYRIC_FONT }}>
-            ♪
-          </span>
-        )}
+        <AnimatePresence mode="popLayout">
+          {curr ? (
+            <motion.div
+              key={curr.time}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                display: "flex", flexWrap: "wrap",
+                justifyContent: "center", alignItems: "center",
+                gap: "0.12em 0.42em",
+                maxWidth: "100%",
+                fontFamily: LYRIC_FONT,
+                lineHeight: 1.35,
+              }}
+            >
+              {words.length > 0 ? (
+                words.map((word, i) => {
+                  const lit     = i < wordIdx;
+                  const current = i === wordIdx;
+                  return (
+                    <span
+                      key={`${activeIndex}-${i}`}
+                      style={{
+                        fontSize: `${fontSize}rem`,
+                        fontWeight: 600,
+                        color: (current || lit)
+                          ? "var(--extracted-primary, #ffffff)"
+                          : "rgba(255,255,255,0.22)",
+                        textShadow: current
+                          ? `0 0 22px var(--extracted-primary, rgba(255,255,255,0.8)),
+                             0 0 45px var(--extracted-primary, rgba(255,255,255,0.18)),
+                             0 2px 10px rgba(0,0,0,0.8)`
+                          : lit
+                          ? "0 1px 6px rgba(0,0,0,0.6)"
+                          : "none",
+                        transition: "color 0.2s ease, text-shadow 0.15s ease",
+                        display: "inline-block",
+                        willChange: "color, text-shadow",
+                      }}
+                    >
+                      {word}
+                    </span>
+                  );
+                })
+              ) : (
+                <span style={{ color: "rgba(255,255,255,0.14)", fontSize: `${fontSize * 0.6}rem`, fontFamily: LYRIC_FONT }}>
+                  ♪
+                </span>
+              )}
+            </motion.div>
+          ) : (
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.14 }}
+              exit={{ opacity: 0 }}
+              style={{ color: "white", fontSize: `${fontSize * 0.6}rem`, fontFamily: LYRIC_FONT }}
+            >
+              ♪
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Current line translation ── */}
-      {curr?.translation && (
-        <div style={{
-          fontSize: `${xsSize}rem`,
-          color: "rgba(255,255,255,0.45)",
-          textAlign: "center",
-          fontFamily: LYRIC_FONT,
-          fontStyle: "italic",
-          marginTop: `-${fontSize * 0.3}rem`,
-          maxWidth: "90%",
-          lineHeight: 1.4,
-          transition: "opacity 0.4s ease",
-        }}>
-          {curr.translation}
-        </div>
-      )}
+      <div style={{
+        minHeight: curr?.translation ? `${xsSize * 1.5}rem` : "0px",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+      }}>
+        <AnimatePresence mode="popLayout">
+          {curr?.translation ? (
+            <motion.div
+              key={`trans-${curr.time}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                fontSize: `${xsSize}rem`,
+                color: "rgba(255,255,255,0.45)",
+                textAlign: "center",
+                fontFamily: LYRIC_FONT,
+                fontStyle: "italic",
+                maxWidth: "90%",
+                lineHeight: 1.4,
+              }}
+            >
+              {curr.translation}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
 
       {/* ── Next line ── */}
-      <SideRow
+      <AnimatedSideRow
         line={next}
         fontSize={smSize}
         xsFontSize={xsSize}
@@ -187,7 +232,7 @@ function WordMode({
   );
 }
 
-function SideRow({
+function AnimatedSideRow({
   line, fontSize, xsFontSize, opacity,
 }: {
   line: LyricLine | null;
@@ -197,32 +242,50 @@ function SideRow({
 }) {
   return (
     <div style={{
-      textAlign: "center",
-      maxWidth: "88%",
-      transition: "opacity 0.45s ease",
-      opacity,
+      height: `${fontSize * 1.5}rem`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "100%",
+      overflow: "hidden"
     }}>
-      <div style={{
-        fontSize: `${fontSize}rem`,
-        color: "white",
-        fontFamily: LYRIC_FONT,
-        lineHeight: 1.45,
-        fontWeight: 400,
-      }}>
-        {line?.text ?? ""}
-      </div>
-      {line?.translation && (
-        <div style={{
-          fontSize: `${xsFontSize}rem`,
-          color: "rgba(255,255,255,0.55)",
-          fontFamily: LYRIC_FONT,
-          fontStyle: "italic",
-          marginTop: "0.1em",
-          lineHeight: 1.3,
-        }}>
-          {line.translation}
-        </div>
-      )}
+      <AnimatePresence mode="popLayout">
+        {line ? (
+          <motion.div
+            key={line.time}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              textAlign: "center",
+              maxWidth: "88%",
+            }}
+          >
+            <div style={{
+              fontSize: `${fontSize}rem`,
+              color: "white",
+              fontFamily: LYRIC_FONT,
+              lineHeight: 1.45,
+              fontWeight: 400,
+            }}>
+              {line.text ?? ""}
+            </div>
+            {line.translation && (
+              <div style={{
+                fontSize: `${xsFontSize}rem`,
+                color: "rgba(255,255,255,0.55)",
+                fontFamily: LYRIC_FONT,
+                fontStyle: "italic",
+                marginTop: "0.1em",
+                lineHeight: 1.3,
+              }}>
+                {line.translation}
+              </div>
+            )}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
