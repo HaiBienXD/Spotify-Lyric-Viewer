@@ -204,13 +204,20 @@ function LyricStageInner() {
         </div>
       )}
 
-      {/* ── Theme background ── */}
-      <div className="absolute inset-0 z-[1] pointer-events-none opacity-40">
+      {/* ── Theme background — subtle, behind everything ── */}
+      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ opacity: 0.18 }}>
         {renderBg()}
       </div>
 
-      {/* ── Visualizer ── */}
-      {visType > 0 && <div className="absolute inset-0 z-[2] pointer-events-none"><Visualizer type={visType} /></div>}
+      {/* ── Extra dark overlay so theme effects don't bleed into lyrics ── */}
+      <div className="absolute inset-0 z-[2] pointer-events-none" style={{ background: "rgba(0,0,0,0.45)" }} />
+
+      {/* ── Visualizer — bottom portion only, not over lyrics ── */}
+      {visType > 0 && (
+        <div className="absolute inset-0 z-[3] pointer-events-none" style={{ opacity: 0.55 }}>
+          <Visualizer type={visType} />
+        </div>
+      )}
 
       {/* ── Beat flash ── */}
       {flashOn && <BeatFlash beat={beat} />}
