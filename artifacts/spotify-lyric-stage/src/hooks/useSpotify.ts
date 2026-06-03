@@ -14,6 +14,8 @@ export interface SpotifyPlaybackState {
     duration_ms: number;
   } | null;
   progress_ms: number;
+  shuffle_state?: boolean;
+  repeat_state?: string;
 }
 
 export function useSpotify() {

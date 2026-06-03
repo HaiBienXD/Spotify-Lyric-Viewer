@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { LyricLine } from "../lib/lrcParser";
 
 export type LyricsMode = "line" | "word";
@@ -13,10 +13,11 @@ interface LyricsDisplayProps {
   isLoading: boolean;
   error: string | null;
   mode?: LyricsMode;
+  beat?: number;
 }
 
 export default function LyricsDisplay({
-  lyrics, currentTime, fontSize, isLoading, error, mode = "word",
+  lyrics, currentTime, fontSize, isLoading, error, mode = "word", beat = 0,
 }: LyricsDisplayProps) {
   const adjustedTime = currentTime + LYRIC_OFFSET;
 
@@ -24,6 +25,14 @@ export default function LyricsDisplay({
   for (let i = lyrics.length - 1; i >= 0; i--) {
     if (adjustedTime >= lyrics[i].time) { activeIndex = i; break; }
   }
+
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    if (beat === 0) return;
+    setPulse(true);
+    const t = setTimeout(() => setPulse(false), 145);
+    return () => clearTimeout(t);
+  }, [beat]);
 
   if (isLoading) {
     return (
@@ -51,22 +60,24 @@ export default function LyricsDisplay({
         activeIndex={activeIndex}
         adjustedTime={adjustedTime}
         fontSize={fontSize}
+        pulse={pulse}
       />
     );
   }
 
   return (
-    <LineMode lyrics={lyrics} activeIndex={activeIndex} fontSize={fontSize} />
+    <LineMode lyrics={lyrics} activeIndex={activeIndex} fontSize={fontSize} pulse={pulse} />
   );
 }
 
 function WordMode({
-  lyrics, activeIndex, adjustedTime, fontSize,
+  lyrics, activeIndex, adjustedTime, fontSize, pulse,
 }: {
   lyrics: LyricLine[];
   activeIndex: number;
   adjustedTime: number;
   fontSize: number;
+  pulse: boolean;
 }) {
   const prev = activeIndex > 0 ? lyrics[activeIndex - 1] : null;
   const curr = activeIndex >= 0 ? lyrics[activeIndex] : null;
@@ -126,15 +137,24 @@ function WordMode({
                     ? "var(--extracted-primary, #ffffff)"
                     : "rgba(255,255,255,0.22)",
                   textShadow: current
-                    ? `0 0 22px var(--extracted-primary, rgba(255,255,255,0.8)),
-                       0 0 60px var(--extracted-primary, rgba(255,255,255,0.18)),
-                       0 2px 10px rgba(0,0,0,0.8)`
+                    ? pulse
+                      ? `0 0 45px var(--extracted-primary, rgba(255,255,255,0.9)),
+                         0 0 20px var(--extracted-primary, rgba(255,255,255,0.8)),
+                         0 2px 10px rgba(0,0,0,0.8)`
+                      : `0 0 22px var(--extracted-primary, rgba(255,255,255,0.8)),
+                         0 0 60px var(--extracted-primary, rgba(255,255,255,0.18)),
+                         0 2px 10px rgba(0,0,0,0.8)`
                     : lit
                     ? "0 1px 6px rgba(0,0,0,0.6)"
                     : "none",
-                  transition: "color 0.2s ease, text-shadow 0.2s ease",
+                  transform: current
+                    ? pulse
+                      ? "scale(1.12)"
+                      : "scale(1.03)"
+                    : "scale(1)",
+                  transition: "color 0.2s ease, text-shadow 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)",
                   display: "inline-block",
-                  willChange: "color",
+                  willChange: "color, transform, text-shadow",
                 }}
               >
                 {word}
@@ -217,11 +237,12 @@ function SideRow({
 }
 
 function LineMode({
-  lyrics, activeIndex, fontSize,
+  lyrics, activeIndex, fontSize, pulse,
 }: {
   lyrics: LyricLine[];
   activeIndex: number;
   fontSize: number;
+  pulse: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeRef    = useRef<HTMLDivElement>(null);
@@ -262,12 +283,23 @@ function LineMode({
               opacity,
               color: isActive ? "var(--extracted-primary, #ffffff)" : "rgba(255,255,255,0.95)",
               textShadow: isActive
-                ? `0 0 20px var(--extracted-primary, rgba(255,255,255,0.5)),
-                   0 0 50px var(--extracted-primary, rgba(255,255,255,0.12)),
-                   0 2px 12px rgba(0,0,0,0.9)`
+                ? pulse
+                  ? `0 0 45px var(--extracted-primary, rgba(255,255,255,0.85)),
+                     0 0 20px var(--extracted-primary, rgba(255,255,255,0.75)),
+                     0 2px 12px rgba(0,0,0,0.9)`
+                  : `0 0 20px var(--extracted-primary, rgba(255,255,255,0.5)),
+                     0 0 50px var(--extracted-primary, rgba(255,255,255,0.12)),
+                     0 2px 12px rgba(0,0,0,0.9)`
                 : "none",
-              transition: "opacity 0.5s ease, font-weight 0.4s ease, text-shadow 0.5s ease",
+              transform: isActive
+                ? pulse
+                  ? "scale(1.04)"
+                  : "scale(1)"
+                : "none",
+              transformOrigin: "center left",
+              transition: "opacity 0.5s ease, font-weight 0.4s ease, text-shadow 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)",
               lineHeight: 1.45,
+              willChange: "transform, text-shadow",
             }}>
               {line.text || "♪"}
             </div>

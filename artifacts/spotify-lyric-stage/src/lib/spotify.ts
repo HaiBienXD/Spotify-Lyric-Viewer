@@ -193,6 +193,7 @@ export async function controlPlayback(action: "play" | "pause" | "next" | "previ
   if (action === "previous") return fetchSpotifyApi("/me/player/previous", { method: "POST" });
   if (action === "play") return fetchSpotifyApi("/me/player/play", { method: "PUT" });
   if (action === "pause") return fetchSpotifyApi("/me/player/pause", { method: "PUT" });
+  return Promise.reject(new Error("Invalid playback action"));
 }
 
 export async function fetchAudioFeatures(trackId: string) {

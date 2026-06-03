@@ -118,6 +118,17 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Copy static frontend assets to dist/public
+  const frontendPublicDir = path.resolve(artifactDir, "../spotify-lyric-stage/dist/public");
+  const targetPublicDir = path.resolve(distDir, "public");
+  try {
+    const { cp } = await import("node:fs/promises");
+    await cp(frontendPublicDir, targetPublicDir, { recursive: true });
+    console.log(`Successfully copied frontend static files to ${targetPublicDir}`);
+  } catch (err) {
+    console.warn("Could not copy frontend files:", err.message);
+  }
 }
 
 buildAll().catch((err) => {
