@@ -147,14 +147,9 @@ function WordMode({
                     : lit
                     ? "0 1px 6px rgba(0,0,0,0.6)"
                     : "none",
-                  transform: current
-                    ? pulse
-                      ? "scale(1.12)"
-                      : "scale(1.03)"
-                    : "scale(1)",
-                  transition: "color 0.2s ease, text-shadow 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  transition: "color 0.2s ease, text-shadow 0.15s ease",
                   display: "inline-block",
-                  willChange: "color, transform, text-shadow",
+                  willChange: "color, text-shadow",
                 }}
               >
                 {word}
@@ -291,15 +286,9 @@ function LineMode({
                      0 0 50px var(--extracted-primary, rgba(255,255,255,0.12)),
                      0 2px 12px rgba(0,0,0,0.9)`
                 : "none",
-              transform: isActive
-                ? pulse
-                  ? "scale(1.04)"
-                  : "scale(1)"
-                : "none",
-              transformOrigin: "center left",
-              transition: "opacity 0.5s ease, font-weight 0.4s ease, text-shadow 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              transition: "opacity 0.5s ease, font-weight 0.4s ease, text-shadow 0.15s ease",
               lineHeight: 1.45,
-              willChange: "transform, text-shadow",
+              willChange: "text-shadow",
             }}>
               {line.text || "♪"}
             </div>

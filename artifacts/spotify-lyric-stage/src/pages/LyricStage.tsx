@@ -240,7 +240,7 @@ export default function LyricStage() {
         <div className="z-10 flex flex-col items-center gap-6">
           {rArt && (
             <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl ring-4 ring-white/10"
-              style={{ animation:"disc-spin 20s linear infinite" }}>
+              style={{ animation:"spin 20s linear infinite" }}>
               <img src={rArt} className="w-full h-full object-cover" alt="" />
             </div>
           )}
@@ -258,7 +258,7 @@ export default function LyricStage() {
         style={{
           background: "radial-gradient(circle at 32% 28%, #3a3a3a 0%, #111 42%, #1e1e1e 70%, #080808 100%)",
           boxShadow: `0 0 0 2px rgba(255,255,255,0.05), 0 ${size*0.1}px ${size*0.3}px rgba(0,0,0,0.9), 0 0 ${size*0.25}px var(--extracted-primary, rgba(80,80,200,0.15))`,
-          animation: "disc-spin 22s linear infinite",
+          animation: "spin 22s linear infinite",
           animationPlayState: isPlaying ? "running" : "paused",
         }}
       >
@@ -268,14 +268,14 @@ export default function LyricStage() {
       </div>
       {/* Album art */}
       <div className="absolute rounded-full overflow-hidden"
-        style={{ inset: "15%", animation:"disc-spin 22s linear infinite", animationPlayState: isPlaying?"running":"paused" }}>
+        style={{ inset: "15%", animation:"spin 22s linear infinite", animationPlayState: isPlaying?"running":"paused" }}>
         {albumArt && <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />}
       </div>
       {/* Center spindle */}
       <div className="absolute rounded-full z-10"
         style={{ inset:"44%", background:"rgba(255,255,255,0.2)", backdropFilter:"blur(4px)",
           boxShadow:"0 0 0 2px rgba(0,0,0,0.5)",
-          animation:"disc-spin 22s linear infinite", animationPlayState:isPlaying?"running":"paused" }} />
+          animation:"spin 22s linear infinite", animationPlayState:isPlaying?"running":"paused" }} />
       {/* Pause indicator */}
       {showPause && !isPlaying && (
         <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/25 z-20">
@@ -292,7 +292,7 @@ export default function LyricStage() {
 
   return (
     <div className="w-full h-screen bg-black text-white overflow-hidden relative select-none"
-      style={{ fontFamily:"Inter, sans-serif" }}>
+      style={{ fontFamily:"'Be Vietnam Pro', 'Inter', sans-serif" }}>
 
       {/* Backgrounds */}
       {renderBg()}

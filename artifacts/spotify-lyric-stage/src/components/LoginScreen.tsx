@@ -68,7 +68,7 @@ export default function LoginScreen() {
 
         <h1
           className="text-5xl md:text-7xl font-bold tracking-tighter mb-3 leading-none"
-          style={{ fontFamily: "Inter, sans-serif", letterSpacing: "-0.04em" }}
+          style={{ fontFamily: "'Be Vietnam Pro', 'Inter', sans-serif", letterSpacing: "-0.04em" }}
         >
           Lyric Stage
         </h1>
