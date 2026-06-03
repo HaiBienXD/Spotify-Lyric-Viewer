@@ -180,17 +180,158 @@ export default function LyricStage() {
     fetchAudioFeatures(track.id).then(d => { if (d?.tempo) setBpm(Math.round(d.tempo)); }).catch(()=>{});
   }, [track?.id]);
 
-  // Queue panel
+  // Queue panel auto-update (polls every 5s to keep it fresh)
   useEffect(() => {
-    if (!showQueue) return;
-    fetchQueue().then(d => { if (d?.queue) setQueue(d.queue.slice(0, 30)); }).catch(()=>{});
-  }, [showQueue]);
+    const updateQueue = () => {
+      fetchQueue().then(d => { if (d?.queue) setQueue(d.queue.slice(0, 30)); }).catch(()=>{});
+    };
+    updateQueue();
+    const interval = setInterval(updateQueue, 5000);
+    return () => clearInterval(interval);
+  }, [track?.id]);
 
   // Sync shuffle/repeat
   useEffect(() => {
     if (playbackState?.shuffle_state !== undefined) setShuffle(playbackState.shuffle_state);
     if (playbackState?.repeat_state) setRepeat(playbackState.repeat_state as RepeatMode);
   }, [playbackState?.shuffle_state, playbackState?.repeat_state]);
+
+  // ── Picture in Picture (PiP) for lyrics ──
+  const [isPipActive, setIsPipActive] = useState(false);
+  const pipVideoRef = useRef<HTMLVideoElement | null>(null);
+  const pipCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pipAnimationFrame = useRef<number | null>(null);
+  const stateRef = useRef({ trackName, artistName, lyrics, activeIndex });
+
+  useEffect(() => {
+    stateRef.current = { trackName, artistName, lyrics, activeIndex };
+  }, [trackName, artistName, lyrics, activeIndex]);
+
+  const startPipRender = (canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const draw = () => {
+      const { trackName, artistName, lyrics, activeIndex } = stateRef.current;
+      
+      // Clear with dark gradient
+      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      grad.addColorStop(0, "#080710");
+      grad.addColorStop(1, "#0f0e20");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw song title
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 24px 'Be Vietnam Pro', 'Inter', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(trackName || "Spotify Lyric Viewer", canvas.width / 2, 50);
+
+      // Draw artist
+      ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.font = "18px 'Be Vietnam Pro', 'Inter', sans-serif";
+      ctx.fillText(artistName || "Unknown Artist", canvas.width / 2, 85);
+
+      // Draw divider
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(80, 110);
+      ctx.lineTo(canvas.width - 80, 110);
+      ctx.stroke();
+
+      const activeLine = activeIndex >= 0 ? lyrics[activeIndex]?.text : "♪";
+      const nextLine = activeIndex >= 0 && activeIndex < lyrics.length - 1 ? lyrics[activeIndex + 1]?.text : "";
+
+      // Draw active lyric
+      ctx.shadowColor = "rgba(30, 215, 96, 0.4)";
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = "#1db954";
+      ctx.font = "bold 32px 'Be Vietnam Pro', 'Inter', sans-serif";
+
+      const wrapText = (text: string, y: number, fontSize: number, maxW: number) => {
+        const words = text.split(" ");
+        let line = "";
+        let currentY = y;
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + " ";
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxW && n > 0) {
+            ctx.fillText(line, canvas.width / 2, currentY);
+            line = words[n] + " ";
+            currentY += fontSize * 1.35;
+          } else {
+            line = testLine;
+          }
+        }
+        ctx.fillText(line, canvas.width / 2, currentY);
+        return currentY;
+      };
+
+      const finalY = wrapText(activeLine || "♪", 180, 32, canvas.width - 60);
+
+      // Draw next lyric
+      ctx.shadowBlur = 0;
+      if (nextLine) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+        ctx.font = "18px 'Be Vietnam Pro', 'Inter', sans-serif";
+        wrapText(nextLine, finalY + 50, 18, canvas.width - 80);
+      }
+
+      pipAnimationFrame.current = requestAnimationFrame(draw);
+    };
+
+    draw();
+  };
+
+  const togglePip = async () => {
+    try {
+      if (isPipActive) {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        }
+        setIsPipActive(false);
+        if (pipAnimationFrame.current) {
+          cancelAnimationFrame(pipAnimationFrame.current);
+          pipAnimationFrame.current = null;
+        }
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 640;
+      canvas.height = 360;
+      pipCanvasRef.current = canvas;
+
+      startPipRender(canvas);
+
+      const video = document.createElement("video");
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = canvas.captureStream(12);
+      pipVideoRef.current = video;
+
+      await video.play();
+      await video.requestPictureInPicture();
+      setIsPipActive(true);
+
+      video.addEventListener("leavepictureinpicture", () => {
+        setIsPipActive(false);
+        if (pipAnimationFrame.current) {
+          cancelAnimationFrame(pipAnimationFrame.current);
+          pipAnimationFrame.current = null;
+        }
+      });
+    } catch (err) {
+      console.error("Failed to enter Picture-in-Picture:", err);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pipAnimationFrame.current) cancelAnimationFrame(pipAnimationFrame.current);
+    };
+  }, []);
 
   // Auto-hide controls in stage mode
   const resetTimer = useCallback(() => {
@@ -503,21 +644,12 @@ export default function LyricStage() {
               
               {/* Left Column: Visual effects */}
               <div className="flex items-center gap-1.5 justify-start">
-                <SmallBtn active={flashOn} onClick={() => setFlashOn(f=>!f)} color="#ffd700" title="Beat Flash">⚡</SmallBtn>
-                <SmallBtn active={waveOn}  onClick={() => setWaveOn(w=>!w)}  color="var(--extracted-primary,#1DB954)" title="Wave">〜</SmallBtn>
                 <SmallBtn active={lyricsMode==="word"} onClick={() => setLyricsMode(m => m==="line"?"word":"line")} color="#c879ff" title="Word mode">字</SmallBtn>
                 
                 {/* Visualizer cycle */}
                 <SmallBtn active={visType>0} onClick={() => setVisType(v=>(v+1)%VISUALIZER_COUNT)} color="#60a5fa" title={VisualizerNames[visType]}>
                   {["♫","◎","▌▐","✦","≋","⬡","⚡","⊙","✶","✺"][visType] || "♫"}
                 </SmallBtn>
-
-                {/* Beat wave (mini) */}
-                {waveOn && (
-                  <div className="h-6 w-20 overflow-hidden ml-2 flex items-end">
-                    <BeatWave beat={beat} bpm={bpm} isPlaying={isPlaying} />
-                  </div>
-                )}
               </div>
 
               {/* Center Column: Playback Controls */}
@@ -572,6 +704,9 @@ export default function LyricStage() {
                 >
                   {THEME_ICONS[theme]}
                 </button>
+
+                {/* Picture in Picture */}
+                <SmallBtn active={isPipActive} onClick={togglePip} color="#00d4ff" title="Picture in Picture">📺</SmallBtn>
 
                 {/* Cinema Mode */}
                 <SmallBtn active={stageMode} onClick={toggleFullscreen} color="#ff6060" title="Fullscreen">

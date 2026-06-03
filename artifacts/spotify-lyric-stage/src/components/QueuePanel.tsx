@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { playTrack } from "../lib/spotify";
 
 interface Track {
   id: string;
@@ -91,16 +92,19 @@ export default function QueuePanel({ isOpen, onClose, queue, currentTrack }: Que
                 queue.map((track, i) => (
                   <div
                     key={`${track.id}-${i}`}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors group"
+                    onClick={() => {
+                      playTrack(`spotify:track:${track.id}`).catch(console.error);
+                    }}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors group cursor-pointer"
                   >
-                    <span className="text-white/20 text-xs w-4 text-right shrink-0">{i + 1}</span>
+                    <span className="text-white/20 text-xs w-4 text-right shrink-0 group-hover:text-[#1db954] transition-colors">{i + 1}</span>
                     <img
                       src={track.album.images[0]?.url}
                       className="w-9 h-9 rounded object-cover shrink-0"
                       alt=""
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-white/85 text-sm font-medium truncate">{track.name}</p>
+                      <p className="text-white/85 text-sm font-medium truncate group-hover:text-[#1db954] transition-colors">{track.name}</p>
                       <p className="text-white/35 text-xs truncate">{track.artists[0]?.name}</p>
                     </div>
                     <span className="text-white/25 text-xs shrink-0">{formatDur(track.duration_ms)}</span>

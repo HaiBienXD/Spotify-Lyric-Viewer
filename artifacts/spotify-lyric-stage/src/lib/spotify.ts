@@ -215,3 +215,11 @@ export async function setShuffleState(state: boolean) {
 export async function setRepeatMode(mode: "off" | "track" | "context") {
   return fetchSpotifyApi(`/me/player/repeat?state=${mode}`, { method: "PUT" });
 }
+
+export async function playTrack(trackUri: string) {
+  return fetchSpotifyApi("/me/player/play", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uris: [trackUri] }),
+  });
+}
