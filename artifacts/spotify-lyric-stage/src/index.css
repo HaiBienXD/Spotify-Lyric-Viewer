@@ -40,11 +40,6 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --animate-vinyl-spin: disc-spin 22s linear infinite;
-
-  @keyframes disc-spin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
 }
 
 :root {
@@ -127,6 +122,10 @@
 
 ::-webkit-scrollbar { width: 0px; background: transparent; }
 
+@keyframes disc-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
 .animate-vinyl-spin {
   animation: disc-spin 22s linear infinite;

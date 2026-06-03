@@ -10,7 +10,7 @@ import BeatFlash from "@/components/BeatFlash";
 import BeatWave from "@/components/BeatWave";
 import QueuePanel from "@/components/QueuePanel";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import {
   clearTokens, controlPlayback, fetchAudioFeatures,
   fetchQueue, setShuffleState, setRepeatMode,
@@ -50,6 +50,71 @@ function getActiveIndex(lyrics: { time: number }[], currentTime: number) {
     if (adj >= lyrics[i].time) return i;
   }
   return -1;
+}
+
+// ── Vinyl Disc component (defined at module level to prevent remounting) ──
+function DiscArt({
+  size,
+  showPause = true,
+  isPlaying,
+  albumArt,
+  albumName,
+}: {
+  size: number;
+  showPause?: boolean;
+  isPlaying: boolean;
+  albumArt?: string;
+  albumName?: string;
+}) {
+  const spinStyle = {
+    animation: "disc-spin 22s linear infinite",
+    animationPlayState: isPlaying ? "running" : "paused",
+  } as CSSProperties;
+
+  return (
+    <div className="relative" style={{ width: size, height: size, flexShrink: 0 }}>
+      {/* Vinyl body */}
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: "radial-gradient(circle at 32% 28%, #3a3a3a 0%, #111 42%, #1e1e1e 70%, #080808 100%)",
+          boxShadow: `0 0 0 2px rgba(255,255,255,0.05), 0 ${size * 0.1}px ${size * 0.3}px rgba(0,0,0,0.9), 0 0 ${size * 0.25}px var(--extracted-primary, rgba(80,80,200,0.15))`,
+          ...spinStyle,
+        }}
+      >
+        {[0.87, 0.76, 0.65].map((s, i) => (
+          <div key={i} className="absolute rounded-full border border-white/[0.035]" style={{ inset: `${(1 - s) * 50}%` }} />
+        ))}
+      </div>
+      {/* Album art */}
+      <div
+        className="absolute rounded-full overflow-hidden"
+        style={{ inset: "15%", ...spinStyle }}
+      >
+        {albumArt && <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />}
+      </div>
+      {/* Center spindle */}
+      <div
+        className="absolute rounded-full z-10"
+        style={{
+          inset: "44%",
+          background: "rgba(255,255,255,0.2)",
+          backdropFilter: "blur(4px)",
+          boxShadow: "0 0 0 2px rgba(0,0,0,0.5)",
+          ...spinStyle,
+        }}
+      />
+      {/* Pause indicator */}
+      {showPause && !isPlaying && (
+        <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/25 z-20">
+          <div className="flex gap-1.5">
+            <div className="bg-white/60 rounded-full" style={{ width: "max(2px,6%)", height: "30%" }} />
+            <div className="bg-white/60 rounded-full" style={{ width: "max(2px,6%)", height: "30%" }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function LyricStage() {
@@ -250,51 +315,6 @@ export default function LyricStage() {
     );
   }
 
-  // ── Disc component (reused in multiple positions) ──
-  const DiscArt = ({ size, showPause = true }: { size: number; showPause?: boolean }) => (
-    <div className="relative" style={{ width: size, height: size, flexShrink: 0 }}>
-      {/* Vinyl body */}
-      <div className="absolute inset-0 rounded-full"
-        style={{
-          background: "radial-gradient(circle at 32% 28%, #3a3a3a 0%, #111 42%, #1e1e1e 70%, #080808 100%)",
-          boxShadow: `0 0 0 2px rgba(255,255,255,0.05), 0 ${size*0.1}px ${size*0.3}px rgba(0,0,0,0.9), 0 0 ${size*0.25}px var(--extracted-primary, rgba(80,80,200,0.15))`,
-          animation: "disc-spin 22s linear infinite",
-          animationPlayState: isPlaying ? "running" : "paused",
-        }}
-      >
-        {[0.87, 0.76, 0.65].map((s, i) => (
-          <div key={i} className="absolute rounded-full border border-white/[0.035]" style={{ inset: `${(1-s)*50}%` }} />
-        ))}
-      </div>
-      {/* Album art */}
-      <div className="absolute rounded-full overflow-hidden"
-        style={{
-          inset: "15%",
-          animation: "disc-spin 22s linear infinite",
-          animationPlayState: isPlaying ? "running" : "paused",
-        }}>
-        {albumArt && <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />}
-      </div>
-      {/* Center spindle */}
-      <div className="absolute rounded-full z-10"
-        style={{
-          inset:"44%", background:"rgba(255,255,255,0.2)", backdropFilter:"blur(4px)",
-          boxShadow:"0 0 0 2px rgba(0,0,0,0.5)",
-          animation: "disc-spin 22s linear infinite",
-          animationPlayState: isPlaying ? "running" : "paused",
-        }} />
-      {/* Pause indicator */}
-      {showPause && !isPlaying && (
-        <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/25 z-20">
-          <div className="flex gap-1.5">
-            <div className="bg-white/60 rounded-full" style={{ width:"max(2px,6%)", height:"30%" }} />
-            <div className="bg-white/60 rounded-full" style={{ width:"max(2px,6%)", height:"30%" }} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   const BOTTOM_H = 96;
 
   return (
@@ -330,7 +350,7 @@ export default function LyricStage() {
             transition={{ duration:0.6, ease:[0.16,1,0.3,1] }}
             className="absolute inset-0 z-[15] flex flex-col items-center justify-center gap-6"
           >
-            <DiscArt size={240} />
+            <DiscArt size={240} isPlaying={isPlaying} albumArt={albumArt} albumName={albumName} />
             <div className="text-center px-8">
               <h2 className="text-white font-bold text-2xl mb-1" style={{ letterSpacing:"-0.02em" }}>{trackName}</h2>
               <p className="text-white/45 text-base">{artistName}</p>
@@ -369,7 +389,7 @@ export default function LyricStage() {
             >
               {/* Disc container with tonearm */}
               <div className="relative" style={{ width: discSize, height: discSize }}>
-                <DiscArt size={discSize} showPause={false} />
+                <DiscArt size={discSize} showPause={false} isPlaying={isPlaying} albumArt={albumArt} albumName={albumName} />
                 
                 {/* Tonearm/Needle SVG */}
                 <div 
