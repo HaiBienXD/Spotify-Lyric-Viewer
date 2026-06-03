@@ -237,121 +237,100 @@ function LyricStageInner() {
               className="flex flex-col items-center justify-center shrink-0 gap-5 py-6"
               style={{ width: "clamp(220px, 30vw, 340px)", paddingLeft: "clamp(16px, 3vw, 40px)" }}
             >
-              {/* Needle arm + Disc */}
-              <div className="relative flex items-start justify-center" style={{ width: discSize + 60, height: discSize + 70 }}>
+              {/* Needle arm + Disc — geometry computed from discSize */}
+              {(() => {
+                // Layout constants
+                const dTop = 34, dLeft = 14;
+                const dCx = dLeft + discSize / 2;
+                const dCy = dTop + discSize / 2;
+                // Needle pivot: top-right of container
+                const pX = discSize + dLeft + 28;
+                const pY = 14;
+                // Touch point on disc groove at ~1-o'clock (28° clockwise from top, 74% radius)
+                const ta = 28 * Math.PI / 180;
+                const tX = dCx + (discSize / 2) * 0.74 * Math.sin(ta);
+                const tY = dCy - (discSize / 2) * 0.74 * Math.cos(ta);
+                // Arm vector
+                const vx = tX - pX, vy = tY - pY;
+                const armLen = Math.sqrt(vx * vx + vy * vy);
+                // Angle from straight-down (+y) to touch point
+                const playAng = Math.atan2(vx, vy) * 180 / Math.PI;
+                const pauseAng = playAng - 26;
+                const ang = isPlaying ? playAng : pauseAng;
+                // Arm tip in unrotated state (straight down from pivot)
+                const tipX = pX, tipY = pY + armLen;
+                const cW = pX + 18;
+                const cH = dTop + discSize + 6;
+                const pr = discSize / 2 + 3;
 
-                {/* Needle arm SVG */}
-                <svg
-                  width="80" height="110"
-                  style={{
-                    position: "absolute",
-                    top: -10,
-                    right: discSize * 0.08,
-                    transformOrigin: "20px 14px",
-                    transform: `rotate(${isPlaying ? -12 : -42}deg)`,
-                    transition: "transform 0.7s cubic-bezier(0.34, 1.2, 0.64, 1)",
-                    zIndex: 10,
-                    filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.7))",
-                  }}
-                  viewBox="0 0 80 110"
-                >
-                  {/* Pivot circle */}
-                  <circle cx="20" cy="14" r="10" fill="#2a2a2a" stroke="#444" strokeWidth="1.5" />
-                  <circle cx="20" cy="14" r="5" fill="#111" stroke="#555" strokeWidth="1" />
-                  {/* Arm */}
-                  <line x1="20" y1="14" x2="62" y2="98" stroke="#333" strokeWidth="5" strokeLinecap="round" />
-                  <line x1="20" y1="14" x2="62" y2="98" stroke="#555" strokeWidth="2.5" strokeLinecap="round" />
-                  {/* Head */}
-                  <circle cx="62" cy="98" r="6" fill="#222" stroke="#666" strokeWidth="1.5" />
-                  <circle cx="62" cy="98" r="2.5" fill="#888" />
-                </svg>
+                return (
+                  <div style={{ position: "relative", width: cW, height: cH, flexShrink: 0 }}>
 
-                {/* Vinyl disc — SINGLE spinning container */}
-                <div
-                  className="disc-glow"
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: discSize,
-                    height: discSize,
-                    borderRadius: "50%",
-                    animation: `disc-spin ${spinRate} linear infinite`,
-                    willChange: "transform",
-                  }}
-                >
-                  {/* Vinyl base */}
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    borderRadius: "50%",
-                    background: "radial-gradient(circle at 35% 30%, #3d3d3d 0%, #161616 40%, #1f1f1f 65%, #0a0a0a 100%)",
-                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04)",
-                  }} />
+                    {/* Spinning disc */}
+                    <div className="disc-glow" style={{
+                      position: "absolute", top: dTop, left: dLeft,
+                      width: discSize, height: discSize, borderRadius: "50%",
+                      animation: `disc-spin ${spinRate} linear infinite`,
+                      willChange: "transform",
+                    }}>
+                      <div style={{ position:"absolute", inset:0, borderRadius:"50%",
+                        background:"radial-gradient(circle at 35% 30%, #3d3d3d 0%, #161616 40%, #1f1f1f 65%, #0a0a0a 100%)",
+                        boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.04)" }} />
+                      {[0.88, 0.78, 0.68, 0.58].map((s, i) => (
+                        <div key={i} style={{ position:"absolute", borderRadius:"50%",
+                          border:"1px solid rgba(255,255,255,0.028)", inset:`${(1-s)*50}%` }} />
+                      ))}
+                      <div style={{ position:"absolute", inset:"15%", borderRadius:"50%", overflow:"hidden",
+                        boxShadow:"0 0 0 1.5px rgba(255,255,255,0.06)" }}>
+                        {albumArt
+                          ? <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />
+                          : <div className="w-full h-full" style={{ background:"#1a1a1a" }} />
+                        }
+                      </div>
+                      <div style={{ position:"absolute", inset:"44%", borderRadius:"50%",
+                        background:"rgba(255,255,255,0.15)", backdropFilter:"blur(2px)",
+                        boxShadow:"0 0 0 1.5px rgba(0,0,0,0.6)" }} />
+                    </div>
 
-                  {/* Groove rings */}
-                  {[0.88, 0.78, 0.68, 0.58].map((s, i) => (
-                    <div key={i} style={{
-                      position: "absolute",
-                      borderRadius: "50%",
-                      border: "1px solid rgba(255,255,255,0.028)",
-                      inset: `${(1 - s) * 50}%`,
-                    }} />
-                  ))}
+                    {/* Progress ring — static, not spinning */}
+                    <svg style={{ position:"absolute", top: dTop - pr + discSize/2,
+                      left: dLeft - pr + discSize/2, pointerEvents:"none" }}
+                      width={pr * 2} height={pr * 2}>
+                      <circle cx={pr} cy={pr} r={pr - 2}
+                        fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2.5" />
+                      <circle cx={pr} cy={pr} r={pr - 2}
+                        fill="none" stroke="var(--extracted-primary, #1DB954)"
+                        strokeWidth="2.5" strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * (pr - 2)}`}
+                        strokeDashoffset={`${2 * Math.PI * (pr - 2) * (1 - progress)}`}
+                        transform={`rotate(-90 ${pr} ${pr})`}
+                        style={{ transition:"stroke-dashoffset 0.35s linear",
+                          filter:"drop-shadow(0 0 5px var(--extracted-primary, #1DB954))" }} />
+                    </svg>
 
-                  {/* Album art circle */}
-                  <div style={{
-                    position: "absolute", inset: "15%",
-                    borderRadius: "50%", overflow: "hidden",
-                    boxShadow: "0 0 0 1.5px rgba(255,255,255,0.06)",
-                  }}>
-                    {albumArt
-                      ? <img src={albumArt} className="w-full h-full object-cover" alt={albumName} />
-                      : <div className="w-full h-full" style={{ background: "#1a1a1a" }} />
-                    }
+                    {/* Needle arm — SVG with CSS rotate around pivot */}
+                    <svg style={{ position:"absolute", top:0, left:0, zIndex:9,
+                      pointerEvents:"none", overflow:"visible" }}
+                      width={cW} height={cH}>
+                      <g style={{
+                        transform: `rotate(${ang}deg)`,
+                        transformOrigin: `${pX}px ${pY}px`,
+                        transition: "transform 0.65s cubic-bezier(0.34, 1.2, 0.64, 1)",
+                        filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.9))",
+                      }}>
+                        <line x1={pX} y1={pY} x2={tipX} y2={tipY}
+                          stroke="#1e1e1e" strokeWidth="7" strokeLinecap="round"/>
+                        <line x1={pX} y1={pY} x2={tipX} y2={tipY}
+                          stroke="#484848" strokeWidth="3.5" strokeLinecap="round"/>
+                        <circle cx={pX} cy={pY} r={13} fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+                        <circle cx={pX} cy={pY} r={5}   fill="#0a0a0a" stroke="#555" strokeWidth="1"/>
+                        <circle cx={tipX} cy={tipY} r={7}   fill="#1a1a1a" stroke="#505050" strokeWidth="1.5"/>
+                        <circle cx={tipX} cy={tipY} r={2.5} fill="#888"/>
+                      </g>
+                    </svg>
                   </div>
-
-                  {/* Center hole */}
-                  <div style={{
-                    position: "absolute", inset: "44%",
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.15)",
-                    backdropFilter: "blur(2px)",
-                    boxShadow: "0 0 0 1.5px rgba(0,0,0,0.6)",
-                  }} />
-                </div>
-
-                {/* Progress ring — does NOT spin */}
-                <svg
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    pointerEvents: "none",
-                  }}
-                  width={discSize + 12}
-                  height={discSize + 12}
-                >
-                  <circle
-                    cx={(discSize + 12) / 2} cy={(discSize + 12) / 2}
-                    r={discSize / 2 + 2}
-                    fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2"
-                  />
-                  <circle
-                    cx={(discSize + 12) / 2} cy={(discSize + 12) / 2}
-                    r={discSize / 2 + 2}
-                    fill="none"
-                    stroke="var(--extracted-primary, #1DB954)"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * (discSize / 2 + 2)}`}
-                    strokeDashoffset={`${2 * Math.PI * (discSize / 2 + 2) * (1 - progress)}`}
-                    transform={`rotate(-90 ${(discSize + 12) / 2} ${(discSize + 12) / 2})`}
-                    style={{ transition: "stroke-dashoffset 0.35s linear", filter: "drop-shadow(0 0 4px var(--extracted-primary, #1DB954))" }}
-                  />
-                </svg>
-              </div>
+                );
+              })()}
 
               {/* Song info */}
               <div className="text-center w-full px-3 flex flex-col gap-1">

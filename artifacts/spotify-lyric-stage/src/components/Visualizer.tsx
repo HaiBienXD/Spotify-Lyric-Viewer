@@ -81,7 +81,12 @@ export default function Visualizer({ type }: VisualizerProps) {
           ctx.fillStyle = gradient;
           ctx.globalAlpha = 0.7;
           ctx.beginPath();
-          ctx.roundRect(i * bw + bw * 0.12, H - h, bw * 0.76, h, 3);
+          const x = i * bw + bw * 0.12, y = H - h, w2 = bw * 0.76, r2 = 3;
+          ctx.beginPath();
+          ctx.moveTo(x + r2, y); ctx.lineTo(x + w2 - r2, y);
+          ctx.arcTo(x + w2, y, x + w2, y + r2, r2);
+          ctx.lineTo(x + w2, y + h); ctx.lineTo(x, y + h); ctx.lineTo(x, y + r2);
+          ctx.arcTo(x, y, x + r2, y, r2); ctx.closePath();
           ctx.fill();
         }
       }
