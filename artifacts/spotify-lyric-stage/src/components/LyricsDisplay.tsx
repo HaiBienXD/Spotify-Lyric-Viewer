@@ -249,8 +249,8 @@ function LineMode({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-y-auto"
-      style={{ scrollbarWidth: "none", padding: "0 clamp(20px, 5vw, 56px)" }}
+      className="w-full h-full overflow-y-auto relative"
+      style={{ scrollbarWidth: "none", padding: "0 clamp(20px, 5vw, 56px)", position: "relative" }}
     >
       <div style={{ height: "46%" }} />
       {lyrics.map((line, idx) => {

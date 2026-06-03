@@ -40,12 +40,56 @@ export default function Visualizer({ type }: VisualizerProps) {
       return s.getPropertyValue("--extracted-primary").trim() || "#fff";
     };
 
-    // Parse hex color to rgb
-    const hexToRgb = (hex: string) => {
-      const r = parseInt(hex.slice(1, 3), 16) || 255;
-      const g = parseInt(hex.slice(3, 5), 16) || 255;
-      const b = parseInt(hex.slice(5, 7), 16) || 255;
-      return { r, g, b };
+    const parseColor = (colorStr: string): { r: number; g: number; b: number } => {
+      const trimmed = colorStr.trim().toLowerCase();
+      if (trimmed.startsWith("rgb")) {
+        const match = trimmed.match(/\d+/g);
+        if (match && match.length >= 3) {
+          return {
+            r: parseInt(match[0], 10),
+            g: parseInt(match[1], 10),
+            b: parseInt(match[2], 10),
+          };
+        }
+      }
+      if (trimmed.startsWith("#")) {
+        const hex = trimmed.substring(1);
+        const r = parseInt(hex.slice(0, 2), 16) || 255;
+        const g = parseInt(hex.slice(2, 4), 16) || 255;
+        const b = parseInt(hex.slice(4, 6), 16) || 255;
+        return { r, g, b };
+      }
+      return { r: 255, g: 255, b: 255 };
+    };
+
+    const withAlpha = (colorStr: string, alphaVal: number | string): string => {
+      let alphaNum = 1.0;
+      if (typeof alphaVal === "string") {
+        if (alphaVal.length === 2) {
+          alphaNum = parseInt(alphaVal, 16) / 255;
+        } else {
+          alphaNum = parseFloat(alphaVal);
+        }
+      } else {
+        alphaNum = alphaVal;
+      }
+      if (isNaN(alphaNum)) alphaNum = 1.0;
+
+      const trimmed = colorStr.trim().toLowerCase();
+      if (trimmed.startsWith("rgb")) {
+        const parts = trimmed.match(/\d+/g);
+        if (parts && parts.length >= 3) {
+          return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alphaNum})`;
+        }
+      }
+      if (trimmed.startsWith("#")) {
+        const hex = trimmed.substring(1);
+        const r = parseInt(hex.slice(0, 2), 16) || 255;
+        const g = parseInt(hex.slice(2, 4), 16) || 255;
+        const b = parseInt(hex.slice(4, 6), 16) || 255;
+        return `rgba(${r}, ${g}, ${b}, ${alphaNum})`;
+      }
+      return colorStr;
     };
 
     const render = () => {
@@ -77,8 +121,8 @@ export default function Visualizer({ type }: VisualizerProps) {
         for (let i = 0; i < bars; i++) {
           const h = Math.abs(Math.sin(t * 2.5 + i * 0.4) * Math.cos(t + i * 0.18)) * H * 0.55 + 10;
           const gradient = ctx.createLinearGradient(0, H, 0, H - h);
-          gradient.addColorStop(0, `${color}cc`);
-          gradient.addColorStop(1, `${color}22`);
+          gradient.addColorStop(0, withAlpha(color, "cc"));
+          gradient.addColorStop(1, withAlpha(color, "22"));
           ctx.fillStyle = gradient;
           ctx.globalAlpha = 0.7;
           ctx.beginPath();
@@ -125,10 +169,10 @@ export default function Visualizer({ type }: VisualizerProps) {
         const waves = 6;
         for (let w = 0; w < waves; w++) {
           const gradient = ctx.createLinearGradient(0, 0, W, 0);
-          gradient.addColorStop(0, `${color}00`);
-          gradient.addColorStop(0.3 + w * 0.06, `${color}${Math.round((0.2 + w * 0.06) * 255).toString(16).padStart(2, "0")}`);
-          gradient.addColorStop(0.7 - w * 0.04, `${color}${Math.round((0.15 + w * 0.04) * 255).toString(16).padStart(2, "0")}`);
-          gradient.addColorStop(1, `${color}00`);
+          gradient.addColorStop(0, withAlpha(color, 0));
+          gradient.addColorStop(0.3 + w * 0.06, withAlpha(color, 0.2 + w * 0.06));
+          gradient.addColorStop(0.7 - w * 0.04, withAlpha(color, 0.15 + w * 0.04));
+          gradient.addColorStop(1, withAlpha(color, 0));
           ctx.beginPath();
           ctx.moveTo(0, cy);
           for (let x = 0; x <= W; x += 3) {
@@ -277,9 +321,9 @@ export default function Visualizer({ type }: VisualizerProps) {
           ctx.save();
           ctx.rotate((seg / segments) * Math.PI * 2 + t * 0.1);
           const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, minDim * 0.4);
-          gradient.addColorStop(0, `${color}00`);
-          gradient.addColorStop(0.5, `${color}${Math.round((0.3 + Math.sin(t + seg) * 0.15) * 255).toString(16).padStart(2, "0")}`);
-          gradient.addColorStop(1, `${color}00`);
+          gradient.addColorStop(0, withAlpha(color, 0));
+          gradient.addColorStop(0.5, withAlpha(color, 0.3 + Math.sin(t + seg) * 0.15));
+          gradient.addColorStop(1, withAlpha(color, 0));
           for (let j = 0; j < 6; j++) {
             const r = (j * 0.18 + Math.sin(t * 1.2 + seg * 0.8 + j) * 0.1 + 0.1) * minDim * 0.45;
             const a = Math.sin(t * 0.8 + j * 0.7) * Math.PI * 0.4;
@@ -297,7 +341,7 @@ export default function Visualizer({ type }: VisualizerProps) {
 
       // ── 10: Plasma Flow ──
       else if (type === 10) {
-        const { r, g, b } = hexToRgb(color);
+        const { r, g, b } = parseColor(color);
         const step = 32;
         for (let x = 0; x < W; x += step) {
           for (let y = 0; y < H; y += step) {
@@ -351,9 +395,9 @@ export default function Visualizer({ type }: VisualizerProps) {
 
         // Horizon glow
         const horizGlow = ctx.createLinearGradient(0, horizonY - 30, 0, horizonY + 30);
-        horizGlow.addColorStop(0, `${color}00`);
-        horizGlow.addColorStop(0.5, `${color}40`);
-        horizGlow.addColorStop(1, `${color}00`);
+        horizGlow.addColorStop(0, withAlpha(color, 0));
+        horizGlow.addColorStop(0.5, withAlpha(color, "40"));
+        horizGlow.addColorStop(1, withAlpha(color, 0));
         ctx.globalAlpha = 0.6;
         ctx.fillStyle = horizGlow;
         ctx.fillRect(0, horizonY - 30, W, 60);
@@ -361,9 +405,9 @@ export default function Visualizer({ type }: VisualizerProps) {
         // Sun
         const sunR = 50 + Math.sin(t * 0.5) * 5;
         const sunGrad = ctx.createRadialGradient(cx, horizonY - 20, 0, cx, horizonY - 20, sunR * 2);
-        sunGrad.addColorStop(0, `${color}88`);
-        sunGrad.addColorStop(0.5, `${color}33`);
-        sunGrad.addColorStop(1, `${color}00`);
+        sunGrad.addColorStop(0, withAlpha(color, "88"));
+        sunGrad.addColorStop(0.5, withAlpha(color, "33"));
+        sunGrad.addColorStop(1, withAlpha(color, 0));
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = sunGrad;
         ctx.beginPath();
@@ -378,7 +422,7 @@ export default function Visualizer({ type }: VisualizerProps) {
           const fx = Math.random() * W;
           const fy = Math.random() * H * 0.5 + H * 0.1;
           const num = 30 + Math.random() * 40;
-          const { r, g, b } = hexToRgb(color);
+          const { r, g, b } = parseColor(color);
           for (let i = 0; i < num; i++) {
             const angle = (i / num) * Math.PI * 2 + Math.random() * 0.3;
             const speed = 1.5 + Math.random() * 3;
@@ -544,9 +588,9 @@ export default function Visualizer({ type }: VisualizerProps) {
           ctx.closePath();
 
           const gradient = ctx.createLinearGradient(0, baseY - amplitude, 0, H);
-          gradient.addColorStop(0, `${color}${Math.round(alpha * 255).toString(16).padStart(2, "0")}`);
-          gradient.addColorStop(0.5, `${color}${Math.round(alpha * 0.5 * 255).toString(16).padStart(2, "0")}`);
-          gradient.addColorStop(1, `${color}08`);
+          gradient.addColorStop(0, withAlpha(color, alpha));
+          gradient.addColorStop(0.5, withAlpha(color, alpha * 0.5));
+          gradient.addColorStop(1, withAlpha(color, "08"));
 
           ctx.globalAlpha = 1;
           ctx.fillStyle = gradient;
@@ -651,8 +695,8 @@ export default function Visualizer({ type }: VisualizerProps) {
 
           // Inner glow
           const glowGrad = ctx.createRadialGradient(cx, cy, r * 0.8, cx, cy, r);
-          glowGrad.addColorStop(0, `${color}00`);
-          glowGrad.addColorStop(1, `${color}${Math.round(alpha * 0.3 * 255).toString(16).padStart(2, "0")}`);
+          glowGrad.addColorStop(0, withAlpha(color, 0));
+          glowGrad.addColorStop(1, withAlpha(color, alpha * 0.3));
           ctx.globalAlpha = 1;
           ctx.fillStyle = glowGrad;
           ctx.beginPath();
