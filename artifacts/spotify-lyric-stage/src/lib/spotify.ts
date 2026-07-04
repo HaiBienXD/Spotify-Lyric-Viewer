@@ -18,7 +18,7 @@ function getRedirectUri(): string {
   //    simply redirects back to /?code=...&state=... so the frontend can finish the PKCE flow.
   //    In dev the Replit preview proxies everything through the same domain, so
   //    window.location.origin correctly resolves to the dev domain.
-  return `${window.location.origin}/api/spotify/callback`;
+  return "https://spotify-lyric-viewer.onrender.com/api/spotify/callback";
 }
 
 export function getCurrentRedirectUri(): string {
