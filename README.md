@@ -43,7 +43,7 @@ A stunning, high-fidelity Spotify real-time lyrics visualizer and player with pr
 
 2. **Configure Spotify App**:
    Create a Spotify Developer Application and register your Redirect URI:
-   `http://localhost:5000/api/spotify/callback`
+   `http://HOSTING:5000/api/spotify/callback`
 
 3. **Set Environment Variables**:
    Create a `.env` file in the root directory (or inject variables via your cloud dashboard):
